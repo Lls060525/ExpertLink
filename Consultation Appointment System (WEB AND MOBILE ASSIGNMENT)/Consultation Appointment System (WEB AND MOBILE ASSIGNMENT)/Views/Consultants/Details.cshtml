@@ -1,0 +1,197 @@
+@model Consultant
+@{
+    ViewData["Title"] = Model.Name;
+    var reviews = (List<Review>)ViewBag.Reviews;
+    int reviewCount = ViewBag.ReviewCount;
+    double rating = ViewBag.Rating;
+    var breakdown = (IEnumerable<dynamic>)ViewBag.Breakdown;
+    var days = new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday };
+    bool isClient = User.IsInRole("Client");
+    bool anon = User.Identity?.IsAuthenticated != true;
+}
+@section Styles {
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+}
+<a asp-action="Index" class="small"><i class="bi bi-arrow-left"></i> Back to search</a>
+<div class="row g-4 mt-1">
+    <div class="col-lg-8">
+        <div class="card-soft mb-4">
+            <div class="profile-cover"></div>
+            <div class="px-4 pb-4 profile-head">
+                <div class="d-flex flex-column flex-sm-row gap-3 align-items-sm-end">
+                    <img src="@Helper.Avatar(Model.PhotoURL)" class="avatar avatar-xl" alt="@Model.Name" />
+                    <div class="pb-2">
+                        <h3 class="fw-bold mb-0">@Model.Name</h3>
+                        <div class="text-muted">@Model.Title</div>
+                        <div class="d-flex flex-wrap gap-2 mt-1 small">
+                            @if (reviewCount > 0)
+                            {
+                                <span><partial name="_Stars" model="rating" /> <b>@rating.ToString("0.0")</b> (@reviewCount reviews)</span>
+                            }
+                            <span class="chip chip-brand"><i class="bi @(Model.Category?.Icon)"></i> @(Model.Category?.Name)</span>
+                            <span class="chip"><i class="bi bi-award"></i> @Model.YearsExperience years</span>
+                            <span class="chip"><i class="bi bi-check2-circle"></i> @ViewBag.Sessions sessions</span>
+                        </div>
+                    </div>
+                </div>
+                <h6 class="fw-bold mt-4">About</h6>
+                <p class="mb-2" style="white-space:pre-line">@Model.Bio</p>
+                <div class="small text-muted"><i class="bi bi-mortarboard"></i> @Model.Qualification</div>
+            </div>
+        </div>
+
+        <div class="card-soft p-4 mb-4" id="services">
+            <h5 class="fw-bold mb-3">Services</h5>
+            @if (Model.Services.Count == 0)
+            {
+                <div class="empty-state py-3"><i class="bi bi-briefcase"></i>No services available right now.</div>
+            }
+            <div class="list-group list-group-flush">
+                @foreach (var s in Model.Services.OrderBy(s => s.Fee))
+                {
+                    <div class="list-group-item bg-transparent px-0 d-flex flex-column flex-md-row gap-3 align-items-md-center">
+                        <div class="flex-grow-1">
+                            <b>@s.Name</b>
+                            <div class="small text-muted">@s.Description</div>
+                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                <span class="chip"><i class="bi bi-clock"></i> @s.DurationMinutes min</span>
+                                @if (s.AllowOnline) { <span class="chip"><i class="bi bi-camera-video"></i> Online</span> }
+                                @if (s.AllowInPerson) { <span class="chip"><i class="bi bi-geo-alt"></i> In-person</span> }
+                            </div>
+                        </div>
+                        <div class="text-md-end text-nowrap">
+                            <div class="fw-bold fs-5">@Helper.Money(s.Fee)</div>
+                            @if (isClient)
+                            {
+                                <a asp-controller="Booking" asp-action="Book" asp-route-id="@s.Id" class="btn btn-primary btn-sm mt-1"><i class="bi bi-calendar-plus"></i> Book</a>
+                            }
+                            else if (anon)
+                            {
+                                <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Url.Action("Book", "Booking", new { id = s.Id })" class="btn btn-primary btn-sm mt-1">Login to Book</a>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card-soft p-4" id="reviews">
+            <h5 class="fw-bold mb-3">Reviews</h5>
+            @if (reviewCount == 0)
+            {
+                <div class="empty-state py-3"><i class="bi bi-chat-square-heart"></i>No reviews yet.</div>
+            }
+            else
+            {
+                <div class="row align-items-center mb-4">
+                    <div class="col-sm-4 text-center">
+                        <div class="display-4 fw-bold">@rating.ToString("0.0")</div>
+                        <partial name="_Stars" model="rating" />
+                        <div class="small text-muted">@reviewCount reviews</div>
+                    </div>
+                    <div class="col-sm-8">
+                        @foreach (var b in breakdown)
+                        {
+                            int pct = reviewCount == 0 ? 0 : (int)Math.Round(100.0 * b.Count / reviewCount);
+                            <div class="d-flex align-items-center gap-2 small">
+                                <span style="width:28px">@b.Stars <i class="bi bi-star-fill text-warning"></i></span>
+                                <div class="progress flex-grow-1 rating-bar"><div class="progress-bar bg-warning" style="width:@pct%"></div></div>
+                                <span class="text-muted" style="width:28px">@b.Count</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+                foreach (var r in reviews)
+                {
+                    <div class="border-top py-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <img src="@Helper.Avatar(r.Appointment.Client.PhotoURL)" class="avatar avatar-sm" alt="" />
+                            <div><b>@r.Appointment.Client.Name</b><div class="small text-muted">@r.CreatedAt.ToString("d MMM yyyy")</div></div>
+                            <div class="ms-auto"><partial name="_Stars" model="(double)r.Rating" /></div>
+                        </div>
+                        @if (r.Comment != null) { <p class="mt-2 mb-1">@r.Comment</p> }
+                        @if (r.Reply != null)
+                        {
+                            <div class="small bg-body-tertiary rounded p-2 ms-4"><b><i class="bi bi-reply"></i> @Model.Name:</b> @r.Reply</div>
+                        }
+                    </div>
+                }
+            }
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card-soft p-4 mb-4">
+            <h6 class="fw-bold"><i class="bi bi-clock"></i> Weekly hours</h6>
+            <table class="table table-sm mb-0 small">
+                @foreach (var d in days)
+                {
+                    var slots = Model.Availabilities.Where(a => a.Day == d).OrderBy(a => a.StartTime).ToList();
+                    <tr class="@(d == DateTime.Today.DayOfWeek ? "fw-bold" : "")">
+                        <td>@d</td>
+                        <td class="text-end">
+                            @if (slots.Count == 0) { <span class="text-muted">Closed</span> }
+                            @foreach (var s in slots) { <div>@s.StartTime.Time12() - @s.EndTime.Time12()</div> }
+                        </td>
+                    </tr>
+                }
+            </table>
+        </div>
+
+        @if (Model.Latitude != null && Model.Longitude != null)
+        {
+            <div class="card-soft p-4 mb-4">
+                <h6 class="fw-bold"><i class="bi bi-geo-alt"></i> Office location</h6>
+                <p class="small text-muted mb-2">@Model.OfficeAddress</p>
+                <div id="map"></div>
+                <a class="btn btn-sm btn-outline-primary w-100 mt-2" target="_blank" href="https://www.google.com/maps/dir/?api=1&destination=@Model.Latitude,@Model.Longitude"><i class="bi bi-sign-turn-right"></i> Get Directions</a>
+            </div>
+        }
+
+        @if (Model.Certificates.Count > 0)
+        {
+            <div class="card-soft p-4">
+                <h6 class="fw-bold"><i class="bi bi-patch-check"></i> Credentials</h6>
+                <div class="row g-2">
+                    @foreach (var p in Model.Certificates)
+                    {
+                        <div class="col-6">
+                            <img src="@p.PhotoURL" class="cert-thumb" alt="@p.Caption" data-bs-toggle="modal" data-bs-target="#imgModal" data-src="@p.PhotoURL" data-caption="@p.Caption" />
+                            <div class="small text-muted text-truncate">@p.Caption</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<div class="modal fade" id="imgModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header"><h6 class="modal-title" id="imgCaption"></h6><button class="btn-close" data-bs-dismiss="modal"></button></div>
+            <img id="imgFull" class="w-100" alt="" />
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('imgModal').addEventListener('show.bs.modal', e => {
+            document.getElementById('imgFull').src = e.relatedTarget.dataset.src;
+            document.getElementById('imgCaption').textContent = e.relatedTarget.dataset.caption;
+        });
+    </script>
+    @if (Model.Latitude != null && Model.Longitude != null)
+    {
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script>
+            (function () {
+                const pos = [@Model.Latitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), @Model.Longitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)];
+                const map = L.map('map', { scrollWheelZoom: false }).setView(pos, 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+                L.marker(pos).addTo(map).bindPopup(@Json.Serialize(Model.Name)).openPopup();
+            })();
+        </script>
+    }
+}

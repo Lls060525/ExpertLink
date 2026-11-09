@@ -1,0 +1,86 @@
+@{
+    ViewData["Title"] = "Book Trusted Consultants";
+    ViewData["FullWidth"] = true;
+    var categories = (IEnumerable<dynamic>)ViewBag.Categories;
+    var top = (List<ConsultantCardVM>)ViewBag.Top;
+    var stats = ViewBag.Stats;
+}
+<section class="hero">
+    <div class="container">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-7">
+                <span class="badge rounded-pill text-bg-light mb-3"><i class="bi bi-shield-check text-success"></i> Verified professionals only</span>
+                <h1>Expert advice, booked in minutes.</h1>
+                <p class="lead mb-4">Find lawyers, financial planners, career coaches, counsellors and more. Pick a time that suits you and meet online or in person.</p>
+                <form asp-controller="Consultants" asp-action="Index" method="get" class="hero-search d-flex flex-column flex-sm-row gap-2">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-0"><i class="bi bi-search text-muted"></i></span>
+                        <input name="Search" class="form-control" placeholder="Try &quot;tax&quot;, &quot;resume&quot; or a name..." data-search />
+                    </div>
+                    <select name="CategoryId" class="form-select" style="max-width:220px">
+                        <option value="">All specialties</option>
+                        @foreach (var c in categories)
+                        {
+                            <option value="@c.Id">@c.Name</option>
+                        }
+                    </select>
+                    <button class="btn btn-primary px-4">Search</button>
+                </form>
+                <div class="d-flex gap-5 mt-4">
+                    <div><div class="hero-stat">@stats.Consultants</div><small class="opacity-75">Consultants</small></div>
+                    <div><div class="hero-stat">@stats.Sessions</div><small class="opacity-75">Sessions completed</small></div>
+                    <div><div class="hero-stat">@(((double)stats.Rating).ToString("0.0")) <i class="bi bi-star-fill text-warning fs-5"></i></div><small class="opacity-75">Average rating</small></div>
+                </div>
+            </div>
+            <div class="col-lg-5 d-none d-lg-block">
+                <div class="card-soft p-4 text-body">
+                    <h6 class="fw-bold mb-3">How it works</h6>
+                    <div class="d-flex gap-3 mb-3"><span class="step-num">1</span><div><b>Find your expert</b><div class="small text-muted">Filter by specialty, fee and mode.</div></div></div>
+                    <div class="d-flex gap-3 mb-3"><span class="step-num">2</span><div><b>Pick a time slot</b><div class="small text-muted">Live availability from the consultant's calendar.</div></div></div>
+                    <div class="d-flex gap-3 mb-3"><span class="step-num">3</span><div><b>Pay securely</b><div class="small text-muted">Card, FPX or e-wallet. Instant e-receipt.</div></div></div>
+                    <div class="d-flex gap-3"><span class="step-num">4</span><div><b>Meet &amp; review</b><div class="small text-muted">QR check-in or video call, then rate your session.</div></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="container py-5">
+    <div class="d-flex justify-content-between align-items-end mb-3">
+        <div><h2 class="page-title mb-0">Browse by specialty</h2><p class="text-muted mb-0">Choose the kind of help you need.</p></div>
+    </div>
+    <div class="row g-3">
+        @foreach (var c in categories)
+        {
+            <div class="col-sm-6 col-lg-3">
+                <a class="cat-tile" asp-controller="Consultants" asp-action="Index" asp-route-CategoryId="@c.Id">
+                    <span class="icon-circle"><i class="bi @c.Icon"></i></span>
+                    <span><b>@c.Name</b><br /><small class="text-muted">@c.Count consultant(s)</small></span>
+                </a>
+            </div>
+        }
+    </div>
+</section>
+
+<section class="container pb-5">
+    <div class="d-flex justify-content-between align-items-end mb-3">
+        <div><h2 class="page-title mb-0">Top-rated consultants</h2><p class="text-muted mb-0">Highly rated by clients like you.</p></div>
+        <a asp-controller="Consultants" asp-action="Index" class="btn btn-outline-primary btn-sm">View all <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <div class="row g-3">
+        @foreach (var c in top)
+        {
+            <div class="col-sm-6 col-lg-3"><partial name="_ConsultantCard" model="c" /></div>
+        }
+    </div>
+</section>
+
+<section class="container pb-5">
+    <div class="card-soft p-4 p-md-5 d-md-flex align-items-center justify-content-between gap-4">
+        <div>
+            <h3 class="fw-bold">Are you a professional consultant?</h3>
+            <p class="text-muted mb-md-0">List your services, manage your calendar and get paid - all in one place.</p>
+        </div>
+        <a asp-controller="Account" asp-action="RegisterConsultant" class="btn btn-primary btn-lg text-nowrap">Become a Consultant</a>
+    </div>
+</section>

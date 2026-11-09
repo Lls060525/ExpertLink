@@ -1,0 +1,45 @@
+@* Shared registration fields for client and consultant sign-up *@
+@model RegisterVM
+<div class="row g-3">
+    <div class="col-12 d-flex align-items-center gap-3">
+        <img src="/images/avatar.svg" id="photoPreview" class="avatar avatar-lg" alt="" />
+        <div>
+            <label asp-for="Photo" class="form-label mb-1">Profile Photo <span class="text-muted small">(optional)</span></label>
+            <div class="d-flex gap-2">
+                <input asp-for="Photo" type="file" accept="image/jpeg,image/png,image/webp" class="form-control form-control-sm" data-preview="#photoPreview" />
+                <button type="button" class="btn btn-sm btn-outline-primary text-nowrap" data-bs-toggle="modal" data-bs-target="#photoEditor"><i class="bi bi-camera"></i> Webcam / Edit</button>
+            </div>
+            <span asp-validation-for="Photo" class="text-danger"></span>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="Name" class="form-label">Full Name</label>
+        <input asp-for="Name" class="form-control" autocomplete="name" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="Phone" class="form-label"></label>
+        <input asp-for="Phone" class="form-control" placeholder="012-3456789" autocomplete="tel" />
+        <span asp-validation-for="Phone" class="text-danger"></span>
+    </div>
+    <div class="col-12">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" autocomplete="email" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="Password" class="form-label"></label>
+        <div class="input-group">
+            <input asp-for="Password" class="form-control" autocomplete="new-password" id="Password" />
+            <button type="button" class="btn btn-outline-secondary pw-toggle" tabindex="-1" aria-label="Show password"><i class="bi bi-eye"></i></button>
+        </div>
+        <div class="progress mt-2" style="height:5px"><div class="progress-bar" id="pwStrength" style="width:0"></div></div>
+        <small class="text-muted" id="pwStrengthText">8+ characters with upper, lower case and a digit</small>
+        <span asp-validation-for="Password" class="text-danger d-block"></span>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="Confirm" class="form-label"></label>
+        <input asp-for="Confirm" class="form-control" autocomplete="new-password" />
+        <span asp-validation-for="Confirm" class="text-danger"></span>
+    </div>
+</div>

@@ -1,0 +1,411 @@
+@model Appointment
+@{
+    ViewData["Title"] = "Appointment " + Model.Reference;
+    var messages = (List<ChatMessage>)ViewBag.Messages;
+    bool canChat = ViewBag.CanChat;
+    bool isClient = User.IsInRole("Client");
+    bool isConsultant = User.IsInRole("Consultant");
+    int me = User.GetUserId();
+    var a = Model;
+    var now = DateTime.Now;
+    bool paid = a.Payment != null;
+    bool active = a.Status is AppointmentStatus.Pending or AppointmentStatus.Confirmed;
+    bool canReschedule = isClient && paid && active && a.StartDateTime >= now.AddHours(BookingController.FreeCancelHours) && a.RescheduleCount < BookingController.MaxReschedules;
+    bool fullRefund = a.StartDateTime >= now.AddHours(BookingController.FreeCancelHours);
+    bool showTicket = paid && a.Status is AppointmentStatus.Pending or AppointmentStatus.Confirmed or AppointmentStatus.CheckedIn;
+    bool started = a.StartDateTime <= now;
+    string Step(bool done) => done ? "done" : "";
+}
+<a asp-action="Index" class="small"><i class="bi bi-arrow-left"></i> Back to appointments</a>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2 mb-3">
+    <div>
+        <h2 class="page-title mb-0">@a.Service.Name</h2>
+        <div class="text-muted">@a.Reference · booked @a.CreatedAt.ToString("d MMM yyyy, h:mm tt")</div>
+    </div>
+    <div class="fs-5"><partial name="_StatusBadge" model="a.Status" /></div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <!-- ===================== Details ===================== -->
+        <div class="card-soft p-4 mb-4">
+            <div class="row g-3">
+                <div class="col-sm-6">
+                    <div class="small text-muted">Date &amp; time</div>
+                    <div class="fw-bold">@a.Date.ToString("dddd, d MMMM yyyy")</div>
+                    <div>@a.StartTime.Time12() - @a.EndTime.Time12() <span class="text-muted">(@a.Service.DurationMinutes min)</span></div>
+                </div>
+                <div class="col-sm-6">
+                    <div class="small text-muted">Mode</div>
+                    <div class="fw-bold"><i class="bi @a.Mode.Icon()"></i> @a.Mode.Text()</div>
+                    @if (a.Mode == ConsultationMode.InPerson && a.Consultant.OfficeAddress != null)
+                    {
+                        <div class="small">@a.Consultant.OfficeAddress</div>
+                    }
+                    @if (a.MeetingLink != null && a.Status is AppointmentStatus.Confirmed or AppointmentStatus.CheckedIn)
+                    {
+                        <a href="@a.MeetingLink" target="_blank" rel="noopener" class="btn btn-sm btn-primary mt-1"><i class="bi bi-camera-video"></i> Join Meeting</a>
+                    }
+                </div>
+                <div class="col-sm-6">
+                    <div class="small text-muted">@(isConsultant ? "Client" : "Consultant")</div>
+                    @{ ExpertLink.Models.User other = isConsultant ? a.Client : a.Consultant; }
+                    <div class="d-flex align-items-center gap-2 mt-1">
+                        <img src="@Helper.Avatar(other.PhotoURL)" class="avatar avatar-sm" alt="" />
+                        <div>
+                            @if (isConsultant)
+                            {
+                                <b>@other.Name</b>
+                            }
+                            else
+                            {
+                                <a asp-controller="Consultants" asp-action="Details" asp-route-id="@a.ConsultantId"><b>@other.Name</b></a>
+                            }
+                            <div class="small text-muted">@(isConsultant ? other.Phone : a.Consultant.Title)</div>
+                        </div>
+                    </div>
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <div class="small mt-1">Client: <b>@a.Client.Name</b> (@a.Client.Email)</div>
+                    }
+                </div>
+                <div class="col-sm-6">
+                    <div class="small text-muted">Payment</div>
+                    @if (a.Payment == null)
+                    {
+                        <span class="badge text-bg-danger">Unpaid</span>
+                    }
+                    else
+                    {
+                        <div class="fw-bold">@Helper.Money(a.Payment.Amount) <span class="badge @(a.Payment.Status == PaymentStatus.Paid ? "text-bg-success" : "text-bg-secondary")">@a.Payment.Status</span></div>
+                        <div class="small text-muted">@a.Payment.Method · @a.Payment.ReferenceNo</div>
+                        if (isClient)
+                        {
+                            <a asp-controller="Booking" asp-action="Receipt" asp-route-id="@a.Id" class="small"><i class="bi bi-receipt"></i> View e-receipt</a>
+                        }
+                    }
+                </div>
+                @if (!string.IsNullOrWhiteSpace(a.Concern))
+                {
+                    <div class="col-12">
+                        <div class="small text-muted">Client's concern</div>
+                        <div class="bg-body-tertiary rounded p-2" style="white-space:pre-line">@a.Concern</div>
+                    </div>
+                }
+                @if (a.CancelReason != null)
+                {
+                    <div class="col-12">
+                        <div class="alert alert-secondary mb-0 small"><b>@(a.Status == AppointmentStatus.Rejected ? "Rejected" : "Cancelled"):</b> @a.CancelReason</div>
+                    </div>
+                }
+                @if (a.SessionNotes != null)
+                {
+                    <div class="col-12">
+                        <div class="small text-muted">Session notes</div>
+                        <div class="bg-body-tertiary rounded p-2" style="white-space:pre-line">@a.SessionNotes</div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- ===================== Actions ===================== -->
+        @if (isClient)
+        {
+            <div class="card-soft p-4 mb-4">
+                <h6 class="fw-bold mb-3">Manage booking</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    @if (a.Status == AppointmentStatus.Pending && !paid)
+                    {
+                        <a asp-controller="Booking" asp-action="Pay" asp-route-id="@a.Id" class="btn btn-primary"><i class="bi bi-credit-card"></i> Pay Now</a>
+                    }
+                    @if (canReschedule)
+                    {
+                        <a asp-controller="Booking" asp-action="Reschedule" asp-route-id="@a.Id" class="btn btn-outline-primary"><i class="bi bi-calendar2-range"></i> Reschedule</a>
+                    }
+                    @if (active)
+                    {
+                        <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal"><i class="bi bi-x-circle"></i> Cancel</button>
+                    }
+                    @if (paid && a.Status is AppointmentStatus.Pending or AppointmentStatus.Confirmed)
+                    {
+                        <button class="btn btn-light" id="icsBtn"><i class="bi bi-calendar-plus"></i> Add to Calendar</button>
+                    }
+                    @if (!active && a.Status != AppointmentStatus.Completed)
+                    {
+                        <a asp-controller="Consultants" asp-action="Details" asp-route-id="@a.ConsultantId" class="btn btn-outline-primary"><i class="bi bi-arrow-repeat"></i> Book Again</a>
+                    }
+                </div>
+                @if (active && paid)
+                {
+                    <p class="small text-muted mt-2 mb-0"><i class="bi bi-info-circle"></i> Free cancellation and rescheduling until @a.StartDateTime.AddHours(-BookingController.FreeCancelHours).ToString("d MMM, h:mm tt").</p>
+                }
+            </div>
+
+            if (a.Status == AppointmentStatus.Completed)
+            {
+                <div class="card-soft p-4 mb-4" id="review">
+                    <h6 class="fw-bold">Your review</h6>
+                    @if (a.Review != null)
+                    {
+                        <partial name="_Stars" model="(double)a.Review.Rating" />
+                        <p class="mb-1 mt-1">@a.Review.Comment</p>
+                        <div class="small text-muted">@a.Review.CreatedAt.ToString("d MMM yyyy")</div>
+                        if (a.Review.Reply != null)
+                        {
+                            <div class="small bg-body-tertiary rounded p-2 mt-2"><b>@a.Consultant.Name replied:</b> @a.Review.Reply</div>
+                        }
+                    }
+                    else
+                    {
+                        <form asp-action="Review" method="post" novalidate>
+                            <input type="hidden" name="AppointmentId" value="@a.Id" />
+                            <p class="small text-muted mb-1">How was your session with @a.Consultant.Name?</p>
+                            <div class="rating-input mb-2">
+                                @for (int i = 5; i >= 1; i--)
+                                {
+                                    <input type="radio" name="Rating" id="star@(i)" value="@i" required />
+                                    <label for="star@(i)" title="@i star(s)"><i class="bi bi-star-fill"></i></label>
+                                }
+                            </div>
+                            <textarea name="Comment" class="form-control mb-2" rows="3" maxlength="500" placeholder="Share your experience (optional)"></textarea>
+                            <button class="btn btn-primary"><i class="bi bi-send"></i> Submit Review</button>
+                        </form>
+                    }
+                </div>
+            }
+        }
+
+        @if (isConsultant)
+        {
+            <div class="card-soft p-4 mb-4">
+                <h6 class="fw-bold mb-3">Actions</h6>
+                <div class="d-flex flex-wrap gap-2">
+                    @if (a.Status == AppointmentStatus.Pending && paid)
+                    {
+                        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmApptModal"><i class="bi bi-check2-circle"></i> Confirm</button>
+                    }
+                    @if (active && paid)
+                    {
+                        <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectModal"><i class="bi bi-x-circle"></i> Reject / Cancel</button>
+                    }
+                    @if (a.Status is AppointmentStatus.Confirmed or AppointmentStatus.CheckedIn && started)
+                    {
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#completeModal"><i class="bi bi-clipboard-check"></i> Mark Completed</button>
+                    }
+                    @if (a.Status == AppointmentStatus.Confirmed && a.Date == DateOnly.FromDateTime(now))
+                    {
+                        <a asp-action="Scanner" class="btn btn-outline-primary"><i class="bi bi-qr-code-scan"></i> Scan Check-In</a>
+                    }
+                    @if (a.Status == AppointmentStatus.Confirmed && a.StartDateTime.AddMinutes(15) <= now)
+                    {
+                        <form asp-action="NoShow" method="post" data-confirm="Mark the client as a no-show? No refund will be given.">
+                            <input type="hidden" name="id" value="@a.Id" />
+                            <button class="btn btn-outline-dark"><i class="bi bi-person-x"></i> No-Show</button>
+                        </form>
+                    }
+                </div>
+                @if (a.Status == AppointmentStatus.Confirmed && !started)
+                {
+                    <p class="small text-muted mt-2 mb-0"><i class="bi bi-info-circle"></i> You can mark the session as completed once it has started.</p>
+                }
+            </div>
+            if (a.Review != null)
+            {
+                <div class="card-soft p-4 mb-4">
+                    <h6 class="fw-bold">Client review</h6>
+                    <partial name="_Stars" model="(double)a.Review.Rating" />
+                    <p class="mb-0 mt-1">@a.Review.Comment</p>
+                </div>
+            }
+        }
+
+        <!-- ===================== Progress ===================== -->
+        <div class="card-soft p-4">
+            <h6 class="fw-bold mb-3">Progress</h6>
+            <ul class="timeline">
+                <li class="done"><b>Booked</b> <span class="small text-muted">@a.CreatedAt.ToString("d MMM, h:mm tt")</span></li>
+                <li class="@Step(paid)"><b>Paid</b> <span class="small text-muted">@(a.Payment?.PaidAt.ToString("d MMM, h:mm tt"))</span></li>
+                @if (a.Status is AppointmentStatus.Cancelled or AppointmentStatus.Rejected)
+                {
+                    <li class="done"><b class="text-danger">@a.Status.Text()</b> @if (a.Payment?.Status == PaymentStatus.Refunded) { <span class="small text-muted">· refunded</span> }</li>
+                }
+                else
+                {
+                    <li class="@Step(a.Status is not AppointmentStatus.Pending)"><b>Confirmed by consultant</b></li>
+                    <li class="@Step(a.CheckedInAt != null || a.Status == AppointmentStatus.Completed)"><b>Checked in / session started</b> <span class="small text-muted">@(a.CheckedInAt?.ToString("h:mm tt"))</span></li>
+                    <li class="@Step(a.Status is AppointmentStatus.Completed or AppointmentStatus.NoShow)"><b>@(a.Status == AppointmentStatus.NoShow ? "No-show" : "Completed")</b></li>
+                    if (isClient || a.Review != null)
+                    {
+                        <li class="@Step(a.Review != null)"><b>Reviewed</b></li>
+                    }
+                }
+            </ul>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        @if (isClient && showTicket)
+        {
+            <div class="ticket mb-4">
+                <h6 class="fw-bold mb-1"><i class="bi bi-qr-code"></i> E-Ticket</h6>
+                <p class="small text-muted">Show this QR code at the consultant's office to check in.</p>
+                <div id="qr" class="d-inline-block"></div>
+                <div class="fw-bold mt-2">@a.Reference</div>
+                <div class="small text-muted">@a.Date.ToString("d MMM yyyy") · @a.StartTime.Time12()</div>
+                <button class="btn btn-sm btn-light mt-2" id="qrDownload"><i class="bi bi-download"></i> Save QR</button>
+            </div>
+        }
+
+        <div class="card-soft p-3" id="chat">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold mb-0"><i class="bi bi-chat-dots"></i> Chat</h6>
+                <small class="text-muted" id="chatStatus">@(canChat ? "Connecting..." : "Chat closed")</small>
+            </div>
+            <div class="chat-box" id="chatBox" data-appointment-id="@a.Id">
+                @if (messages.Count == 0)
+                {
+                    <div class="chat-empty text-center text-muted small my-auto">No messages yet. Say hello!</div>
+                }
+                @foreach (var m in messages)
+                {
+                    bool mine = m.SenderId == me;
+                    <div class="msg @(mine ? "me" : "them")">
+                        <img src="@Helper.Avatar(m.Sender.PhotoURL)" class="avatar" alt="" />
+                        <div>
+                            <div class="bubble">@m.Content</div>
+                            <div class="meta @(mine ? "text-end" : "")">@(mine ? "" : m.Sender.Name + " · ")@m.SentAt.ToString("d MMM, h:mm tt")</div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="small text-muted mt-1" id="typing" style="min-height:1.2em"></div>
+            @if (canChat)
+            {
+                <form id="chatForm" class="d-flex gap-2" data-no-lock>
+                    <textarea id="chatInput" class="form-control" rows="1" maxlength="1000" placeholder="Type a message... (Enter to send)" style="resize:none"></textarea>
+                    <button class="btn btn-primary" aria-label="Send"><i class="bi bi-send"></i></button>
+                </form>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- ===================== Modals ===================== -->
+@if (isClient && active)
+{
+    <div class="modal fade" id="cancelModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form asp-controller="Booking" asp-action="Cancel" method="post" class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Cancel appointment</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input type="hidden" name="AppointmentId" value="@a.Id" />
+                    @if (paid)
+                    {
+                        <div class="alert @(fullRefund ? "alert-success" : "alert-warning") small">
+                            @if (fullRefund) { <span><i class="bi bi-check-circle"></i> You will receive a <b>full refund of @Helper.Money(a.Fee)</b>.</span> }
+                            else { <span><i class="bi bi-exclamation-triangle"></i> This session starts in less than @BookingController.FreeCancelHours hours. <b>No refund</b> will be given.</span> }
+                        </div>
+                    }
+                    <label class="form-label" for="cancelReason">Reason for cancelling</label>
+                    <textarea name="Reason" id="cancelReason" class="form-control" rows="3" maxlength="300" required></textarea>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Keep Appointment</button><button class="btn btn-danger">Cancel Appointment</button></div>
+            </form>
+        </div>
+    </div>
+}
+@if (isConsultant)
+{
+    <div class="modal fade" id="confirmApptModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form asp-action="Confirm" method="post" class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Confirm appointment</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input type="hidden" name="AppointmentId" value="@a.Id" />
+                    <p>Confirm <b>@a.Client.Name</b> on <b>@a.Date.ToString("d MMM yyyy")</b> at <b>@a.StartTime.Time12()</b>?</p>
+                    @if (a.Mode == ConsultationMode.Online)
+                    {
+                        <label class="form-label" for="meetLink">Meeting link (Google Meet / Zoom / Teams)</label>
+                        <input type="url" name="MeetingLink" id="meetLink" class="form-control" maxlength="200" required placeholder="https://meet.google.com/abc-defg-hij" />
+                    }
+                    else
+                    {
+                        <p class="small text-muted mb-0">The client will check in at your office using their QR e-ticket.</p>
+                    }
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button><button class="btn btn-success">Confirm</button></div>
+            </form>
+        </div>
+    </div>
+    <div class="modal fade" id="rejectModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form asp-action="Reject" method="post" class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Reject / cancel appointment</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input type="hidden" name="AppointmentId" value="@a.Id" />
+                    <div class="alert alert-warning small">The client will receive a full refund of @Helper.Money(a.Fee).</div>
+                    <label class="form-label" for="rejectReason">Reason (shown to the client)</label>
+                    <textarea name="Reason" id="rejectReason" class="form-control" rows="3" maxlength="300" required></textarea>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button><button class="btn btn-danger">Reject</button></div>
+            </form>
+        </div>
+    </div>
+    <div class="modal fade" id="completeModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form asp-action="Complete" method="post" class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Complete session</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input type="hidden" name="AppointmentId" value="@a.Id" />
+                    <label class="form-label" for="notes">Session notes (visible to the client)</label>
+                    <textarea name="SessionNotes" id="notes" class="form-control" rows="5" minlength="10" maxlength="2000" required placeholder="Summary of discussion, advice given and next steps"></textarea>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button><button class="btn btn-primary">Mark Completed</button></div>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    @if (isClient && showTicket)
+    {
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+        <script>
+            (function () {
+                const el = document.getElementById('qr');
+                new QRCode(el, { text: @Json.Serialize($"EXL:{a.Id}:{a.CheckInCode}"), width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
+                document.getElementById('qrDownload').addEventListener('click', () => {
+                    const c = el.querySelector('canvas');
+                    const link = document.createElement('a');
+                    link.download = @Json.Serialize(a.Reference + "-eticket.png");
+                    link.href = c.toDataURL('image/png');
+                    link.click();
+                });
+            })();
+        </script>
+    }
+    @if (isClient)
+    {
+        <script>
+            // Add to calendar (.ics file generated in the browser)
+            document.getElementById('icsBtn')?.addEventListener('click', () => {
+                const fmt = s => s.replace(/[-:]/g, '');
+                const ics = [
+                    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//ExpertLink//EN', 'BEGIN:VEVENT',
+                    'UID:' + @Json.Serialize(a.Reference) + '@@expertlink',
+                    'DTSTART:' + fmt(@Json.Serialize(a.Date.ToString("yyyy-MM-dd") + "T" + a.StartTime.ToString("HH:mm") + "00")),
+                    'DTEND:' + fmt(@Json.Serialize(a.Date.ToString("yyyy-MM-dd") + "T" + a.EndTime.ToString("HH:mm") + "00")),
+                    'SUMMARY:' + @Json.Serialize(a.Service.Name + " with " + a.Consultant.Name),
+                    'LOCATION:' + @Json.Serialize(a.Mode == ConsultationMode.Online ? (a.MeetingLink ?? "Online") : (a.Consultant.OfficeAddress ?? "")),
+                    'DESCRIPTION:Booking ' + @Json.Serialize(a.Reference),
+                    'END:VEVENT', 'END:VCALENDAR'
+                ].join('\r\n');
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+                link.download = @Json.Serialize(a.Reference + ".ics");
+                link.click();
+            });
+        </script>
+    }
+    <script src="~/js/chat.js" asp-append-version="true"></script>
+}

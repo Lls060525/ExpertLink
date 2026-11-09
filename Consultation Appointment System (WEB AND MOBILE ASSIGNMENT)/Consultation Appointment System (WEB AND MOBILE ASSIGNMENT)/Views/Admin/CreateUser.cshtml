@@ -1,0 +1,62 @@
+@model CreateUserVM
+@{
+    ViewData["Title"] = "New User";
+}
+<div class="card-soft p-4 p-md-5 mx-auto" style="max-width:640px">
+    <h4 class="fw-bold mb-1"><i class="bi bi-person-plus text-primary"></i> Create User</h4>
+    <p class="text-muted small mb-4">Create an administrator or a walk-in client account. Consultants should apply through the consultant sign-up page.</p>
+    <form asp-action="CreateUser" method="post" novalidate>
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Role</label>
+                <div class="d-flex gap-3">
+                    <div class="form-check"><input class="form-check-input" type="radio" asp-for="Role" value="Admin" id="roleAdmin" /><label class="form-check-label" for="roleAdmin">Admin</label></div>
+                    <div class="form-check"><input class="form-check-input" type="radio" asp-for="Role" value="Client" id="roleClient" /><label class="form-check-label" for="roleClient">Client</label></div>
+                </div>
+                <span asp-validation-for="Role" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Phone" class="form-label"></label>
+                <input asp-for="Phone" class="form-control" placeholder="012-3456789" />
+                <span asp-validation-for="Phone" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="Password" class="form-label"></label>
+                <div class="input-group">
+                    <input asp-for="Password" class="form-control" autocomplete="new-password" />
+                    <button type="button" class="btn btn-outline-secondary" id="genPw" title="Generate"><i class="bi bi-magic"></i> Generate</button>
+                </div>
+                <span asp-validation-for="Password" class="text-danger"></span>
+            </div>
+        </div>
+        <div class="d-flex gap-2 mt-4">
+            <button class="btn btn-primary">Create</button>
+            <a asp-action="Users" class="btn btn-light">Cancel</a>
+        </div>
+    </form>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.getElementById('genPw').addEventListener('click', () => {
+            const sets = ['ABCDEFGHJKLMNPQRSTUVWXYZ', 'abcdefghijkmnpqrstuvwxyz', '23456789', '@@#$%'];
+            const rnd = s => s[crypto.getRandomValues(new Uint32Array(1))[0] % s.length];
+            let pw = sets.map(rnd).join('');
+            for (let i = 0; i < 6; i++) pw += rnd(sets.join(''));
+            const input = document.getElementById('Password');
+            input.type = 'text';
+            input.value = pw.split('').sort(() => Math.random() - .5).join('');
+            $(input).valid();
+        });
+    </script>
+}

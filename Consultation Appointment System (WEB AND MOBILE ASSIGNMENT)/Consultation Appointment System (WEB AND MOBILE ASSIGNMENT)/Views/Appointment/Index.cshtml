@@ -1,0 +1,70 @@
+@model PagedList<Appointment>
+@{
+    bool isConsultant = User.IsInRole("Consultant");
+    ViewData["Title"] = isConsultant ? "Appointments" : "My Appointments";
+    string tab = ViewBag.Tab;
+    int pendingCount = ViewBag.PendingCount;
+    var tabs = new[] { ("upcoming", "Upcoming", "bi-calendar-event"), ("pending", isConsultant ? "To Confirm" : "Awaiting Confirmation", "bi-hourglass-split"), ("past", "Past", "bi-clock-history"), ("cancelled", "Cancelled", "bi-x-circle") };
+}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h2 class="page-title mb-0">@ViewData["Title"]</h2>
+    <div class="d-flex gap-2">
+        <form method="get" class="d-flex">
+            <input type="hidden" name="tab" value="@tab" />
+            <input name="search" value="@ViewBag.Search" class="form-control form-control-sm" placeholder="Search..." data-search />
+        </form>
+        @if (!isConsultant)
+        {
+            <a asp-controller="Consultants" asp-action="Index" class="btn btn-sm btn-primary text-nowrap"><i class="bi bi-plus-lg"></i> New Booking</a>
+        }
+    </div>
+</div>
+<ul class="nav nav-pills mb-3 flex-nowrap overflow-auto">
+    @foreach (var (key, label, icon) in tabs)
+    {
+        <li class="nav-item">
+            <a class="nav-link text-nowrap @(tab == key ? "active" : "")" asp-action="Index" asp-route-tab="@key">
+                <i class="bi @icon"></i> @label
+                @if (key == "pending" && pendingCount > 0) { <span class="badge rounded-pill text-bg-warning ms-1">@pendingCount</span> }
+            </a>
+        </li>
+    }
+</ul>
+@if (Model.Items.Count == 0)
+{
+    <div class="card-soft empty-state">
+        <i class="bi bi-calendar2-x"></i>No appointments here.
+        @if (!isConsultant && tab == "upcoming")
+        {
+            <div><a asp-controller="Consultants" asp-action="Index" class="btn btn-primary mt-3">Find a consultant</a></div>
+        }
+    </div>
+}
+<div class="d-flex flex-column gap-2">
+    @foreach (var a in Model.Items)
+    {
+        ExpertLink.Models.User other = isConsultant ? a.Client : a.Consultant;
+        <a asp-action="Details" asp-route-id="@a.Id" class="card-soft p-3 text-decoration-none text-body d-flex flex-column flex-md-row gap-3 align-items-md-center consultant-card">
+            <div class="text-center flex-shrink-0 rounded-3 bg-primary-soft p-2" style="width:72px">
+                <div class="small text-uppercase text-primary fw-semibold">@a.Date.ToString("MMM")</div>
+                <div class="fs-3 fw-bold lh-1">@a.Date.Day</div>
+                <div class="small text-muted">@a.Date.ToString("ddd")</div>
+            </div>
+            <img src="@Helper.Avatar(other.PhotoURL)" class="avatar avatar-md d-none d-md-block" alt="" />
+            <div class="flex-grow-1">
+                <div class="fw-bold">@a.Service.Name</div>
+                <div class="small text-muted">@(isConsultant ? "Client" : "With") <b>@other.Name</b> · <i class="bi bi-clock"></i> @a.StartTime.Time12() - @a.EndTime.Time12() · <i class="bi @a.Mode.Icon()"></i> @a.Mode.Text()</div>
+                <div class="small text-muted">@a.Reference</div>
+            </div>
+            <div class="text-md-end">
+                <partial name="_StatusBadge" model="a.Status" />
+                @if (a.Payment == null && a.Status == AppointmentStatus.Pending)
+                {
+                    <div><span class="badge text-bg-danger mt-1">Payment required</span></div>
+                }
+                <div class="fw-bold mt-1">@Helper.Money(a.Fee)</div>
+            </div>
+        </a>
+    }
+</div>
+<div class="mt-3"><partial name="_Pager" model="new PagerVM(Model.Page, Model.TotalPages)" /></div>

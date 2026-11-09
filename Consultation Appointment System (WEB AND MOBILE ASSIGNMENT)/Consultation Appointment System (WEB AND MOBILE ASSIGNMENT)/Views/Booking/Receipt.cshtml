@@ -1,0 +1,51 @@
+@model Appointment
+@{
+    ViewData["Title"] = "E-Receipt " + Model.Reference;
+    var p = Model.Payment!;
+}
+<div class="card-soft p-4 p-md-5 mx-auto" style="max-width:720px" id="receipt">
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <div class="brand fs-4"><img src="~/images/logo.svg" width="32" alt="" /> Expert<span>Link</span></div>
+            <div class="small text-muted">ExpertLink Consultation Sdn. Bhd.</div>
+        </div>
+        <div class="text-end">
+            <h4 class="fw-bold mb-0">E-RECEIPT</h4>
+            <div class="small text-muted">@p.ReferenceNo</div>
+            @if (p.Status == PaymentStatus.Refunded)
+            {
+                <span class="badge text-bg-secondary mt-1">REFUNDED @(p.RefundedAt?.ToString("d MMM yyyy"))</span>
+            }
+            else
+            {
+                <span class="badge text-bg-success mt-1">PAID</span>
+            }
+        </div>
+    </div>
+    <div class="row mb-4 small">
+        <div class="col-6"><div class="text-muted">Billed to</div><b>@Model.Client.Name</b><div>@Model.Client.Email</div><div>@Model.Client.Phone</div></div>
+        <div class="col-6 text-end"><div class="text-muted">Payment date</div><b>@p.PaidAt.ToString("d MMM yyyy, h:mm tt")</b><div>@p.Method @(p.CardLast4 != null ? "**** " + p.CardLast4 : "")</div></div>
+    </div>
+    <table class="table">
+        <thead><tr><th>Description</th><th class="text-end">Amount</th></tr></thead>
+        <tbody>
+            <tr>
+                <td>
+                    <b>@Model.Service.Name</b> (@Model.Service.DurationMinutes min, @Model.Mode.Text())
+                    <div class="small text-muted">with @Model.Consultant.Name · @Model.Date.ToString("dddd, d MMM yyyy") · @Model.StartTime.Time12() - @Model.EndTime.Time12()</div>
+                    <div class="small text-muted">Booking ref: @Model.Reference</div>
+                </td>
+                <td class="text-end">@Helper.Money(Model.Fee)</td>
+            </tr>
+        </tbody>
+        <tfoot>
+            <tr><th class="text-end">Total paid</th><th class="text-end fs-5">@Helper.Money(p.Amount)</th></tr>
+        </tfoot>
+    </table>
+    <p class="small text-muted mb-0">This is a computer-generated receipt. No signature is required.</p>
+</div>
+<div class="d-flex flex-wrap justify-content-center gap-2 mt-3 no-print">
+    <button type="button" class="btn btn-outline-primary" onclick="window.print()"><i class="bi bi-printer"></i> Print / Save as PDF</button>
+    <form asp-action="EmailReceipt" method="post"><input type="hidden" name="id" value="@Model.Id" /><button class="btn btn-outline-primary"><i class="bi bi-envelope"></i> Email Receipt</button></form>
+    <a asp-controller="Appointment" asp-action="Details" asp-route-id="@Model.Id" class="btn btn-primary"><i class="bi bi-qr-code"></i> View Appointment &amp; E-Ticket</a>
+</div>

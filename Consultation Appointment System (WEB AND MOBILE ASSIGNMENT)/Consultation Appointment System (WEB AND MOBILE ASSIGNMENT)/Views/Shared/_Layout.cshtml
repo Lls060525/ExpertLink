@@ -1,0 +1,197 @@
+@{
+    var theme = Context.Request.Cookies["theme"] == "dark" ? "dark" : "light";
+    var authed = User.Identity?.IsAuthenticated == true;
+    var fullWidth = ViewData["FullWidth"] as bool? == true;
+}
+@functions {
+    string Active(string controller, string? action = null)
+    {
+        var c = ViewContext.RouteData.Values["controller"]?.ToString();
+        var a = ViewContext.RouteData.Values["action"]?.ToString();
+        return c == controller && (action == null || a == action) ? "active" : "";
+    }
+}
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="@theme">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - ExpertLink</title>
+    <link rel="icon" href="~/images/logo.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="d-flex flex-column min-vh-100" data-user-id="@(authed ? User.GetUserId() : 0)">
+    <nav class="navbar navbar-expand-lg sticky-top app-nav">
+        <div class="container">
+            <a class="navbar-brand brand" asp-controller="Home" asp-action="Index">
+                <img src="~/images/logo.svg" alt="" width="30" height="30" /> Expert<span>Link</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="mainNav">
+                <ul class="navbar-nav me-auto">
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <li class="nav-item"><a class="nav-link @Active("Admin", "Dashboard")" asp-controller="Admin" asp-action="Dashboard"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                        <li class="nav-item"><a class="nav-link @Active("Admin", "Users") @Active("Admin", "UserDetail")" asp-controller="Admin" asp-action="Users"><i class="bi bi-people"></i> Users</a></li>
+                        <li class="nav-item"><a class="nav-link @Active("Category")" asp-controller="Category" asp-action="Index"><i class="bi bi-tags"></i> Categories</a></li>
+                        <li class="nav-item"><a class="nav-link @Active("Admin", "Appointments")" asp-controller="Admin" asp-action="Appointments"><i class="bi bi-calendar-week"></i> Appointments</a></li>
+                        <li class="nav-item"><a class="nav-link @Active("Admin", "Reviews")" asp-controller="Admin" asp-action="Reviews"><i class="bi bi-star"></i> Reviews</a></li>
+                    }
+                    else if (User.IsInRole("Consultant"))
+                    {
+                        <li class="nav-item"><a class="nav-link @Active("Consultant", "Dashboard")" asp-controller="Consultant" asp-action="Dashboard"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                        <li class="nav-item"><a class="nav-link @Active("Appointment")" asp-controller="Appointment" asp-action="Index"><i class="bi bi-calendar-check"></i> Appointments</a></li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle @Active("Consultant", "Availability") @Active("Consultant", "TimeOff")" href="#" data-bs-toggle="dropdown"><i class="bi bi-clock"></i> Schedule</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" asp-controller="Consultant" asp-action="Availability"><i class="bi bi-calendar3-week"></i> Weekly Availability</a></li>
+                                <li><a class="dropdown-item" asp-controller="Consultant" asp-action="TimeOff"><i class="bi bi-calendar-x"></i> Time Off</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item"><a class="nav-link @Active("Consultant", "Services")" asp-controller="Consultant" asp-action="Services"><i class="bi bi-briefcase"></i> Services</a></li>
+                        <li class="nav-item"><a class="nav-link @Active("Consultant", "Reviews")" asp-controller="Consultant" asp-action="Reviews"><i class="bi bi-star"></i> Reviews</a></li>
+                        <li class="nav-item"><a class="nav-link @Active("Appointment", "Scanner")" asp-controller="Appointment" asp-action="Scanner"><i class="bi bi-qr-code-scan"></i> Check-In</a></li>
+                    }
+                    else
+                    {
+                        <li class="nav-item"><a class="nav-link @Active("Consultants")" asp-controller="Consultants" asp-action="Index"><i class="bi bi-search"></i> Find a Consultant</a></li>
+                        if (User.IsInRole("Client"))
+                        {
+                            <li class="nav-item"><a class="nav-link @Active("Appointment") @Active("Booking")" asp-controller="Appointment" asp-action="Index"><i class="bi bi-calendar-check"></i> My Appointments</a></li>
+                        }
+                    }
+                </ul>
+
+                <ul class="navbar-nav align-items-lg-center gap-lg-1">
+                    <li class="nav-item">
+                        <button type="button" class="btn nav-link" id="themeToggle" title="Toggle dark mode (Shift+D)" aria-label="Toggle dark mode">
+                            <i class="bi @(theme == "dark" ? "bi-sun" : "bi-moon-stars")"></i>
+                        </button>
+                    </li>
+                    @if (authed)
+                    {
+                        <li class="nav-item dropdown">
+                            <a class="nav-link position-relative" href="#" data-bs-toggle="dropdown" id="bellToggle" aria-label="Notifications">
+                                <i class="bi bi-bell fs-5"></i>
+                                <span class="position-absolute translate-middle badge rounded-pill bg-danger d-none" id="bellCount" style="top:8px;left:28px">0</span>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-end notif-menu p-0 shadow">
+                                <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                                    <strong>Notifications</strong>
+                                    <button class="btn btn-link btn-sm p-0" id="markAllRead">Mark all read</button>
+                                </div>
+                                <div id="notifList"><div class="p-3 text-muted small">Loading...</div></div>
+                                <a class="d-block text-center py-2 border-top small" asp-controller="Notification" asp-action="Index">View all</a>
+                            </div>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" data-bs-toggle="dropdown">
+                                <img src="@User.GetPhoto()" class="avatar avatar-sm" alt="" />
+                                <span class="d-lg-none d-xl-inline">@User.Identity!.Name</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow">
+                                <li class="px-3 py-2 small text-muted">Signed in as <b>@(User.IsInRole("Admin") ? "Admin" : User.IsInRole("Consultant") ? "Consultant" : "Client")</b></li>
+                                <li><hr class="dropdown-divider" /></li>
+                                <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile"><i class="bi bi-person-circle"></i> My Profile</a></li>
+                                <li><a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword"><i class="bi bi-key"></i> Change Password</a></li>
+                                <li><a class="dropdown-item" asp-controller="Notification" asp-action="Index"><i class="bi bi-bell"></i> Notifications</a></li>
+                                <li><hr class="dropdown-divider" /></li>
+                                <li>
+                                    <form asp-controller="Account" asp-action="Logout" method="post">
+                                        <button class="dropdown-item text-danger"><i class="bi bi-box-arrow-right"></i> Logout</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item"><a class="nav-link" asp-controller="Account" asp-action="Login">Login</a></li>
+                        <li class="nav-item"><a class="btn btn-primary btn-sm px-3 ms-lg-2" asp-controller="Account" asp-action="Register">Sign Up</a></li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="flex-grow-1">
+        <div class="container mt-3" id="flash">
+            @if (TempData["Info"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show auto-dismiss" role="alert">
+                    <i class="bi bi-check-circle-fill me-1"></i> @TempData["Info"]
+                    @if (TempData["DemoLink"] is string demo)
+                    {
+                        <div class="mt-2 small"><i class="bi bi-envelope-paper"></i> Demo link: <a href="@demo" class="alert-link text-break">@demo</a></div>
+                    }
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["Error"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+        </div>
+        @if (fullWidth)
+        {
+            @RenderBody()
+        }
+        else
+        {
+            <div class="container pb-5 pt-2">
+                @RenderBody()
+            </div>
+        }
+    </main>
+
+    <footer class="app-footer mt-auto">
+        <div class="container d-flex flex-column flex-md-row justify-content-between gap-2 py-4 small">
+            <div><img src="~/images/logo.svg" alt="" width="20" /> &copy; @DateTime.Now.Year ExpertLink Consultation Appointment System</div>
+            <div class="d-flex gap-3">
+                <a asp-controller="Consultants" asp-action="Index">Find a Consultant</a>
+                <a asp-controller="Account" asp-action="RegisterConsultant">Become a Consultant</a>
+                <a asp-controller="Home" asp-action="Privacy">Privacy</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Toasts (real-time notifications) -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toasts"></div>
+
+    <!-- Generic confirmation modal used by forms with data-confirm -->
+    <div class="modal fade" id="confirmModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title"><i class="bi bi-question-circle text-primary"></i> Please confirm</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body" id="confirmText"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmOk">Yes, continue</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form id="antiForgery" class="d-none">@Html.AntiForgeryToken()</form>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @if (authed)
+    {
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+        <script src="~/js/notifications.js" asp-append-version="true"></script>
+    }
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

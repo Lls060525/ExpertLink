@@ -1,0 +1,65 @@
+@model BookVM
+@{
+    var s = Model.Service!;
+    ViewData["Title"] = "Book " + s.Name;
+}
+<a asp-controller="Consultants" asp-action="Details" asp-route-id="@s.ConsultantId" class="small"><i class="bi bi-arrow-left"></i> Back to @s.Consultant.Name</a>
+<h2 class="page-title mt-2 mb-3">Book a Session</h2>
+<form asp-action="Book" method="post" novalidate id="bookForm">
+    <input type="hidden" asp-for="ServiceId" />
+    <input type="hidden" name="Date" id="Date" value="@(Model.Date?.ToString("yyyy-MM-dd"))" />
+    <input type="hidden" name="StartTime" id="StartTime" value="@(Model.StartTime?.ToString("HH:mm"))" />
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card-soft p-4 mb-4">
+                <h5 class="fw-bold mb-3"><span class="step-num me-2">1</span> Choose date &amp; time</h5>
+                <partial name="_SlotPicker" model="s.Id" />
+                <span asp-validation-for="Date" class="text-danger d-block"></span>
+                <span asp-validation-for="StartTime" class="text-danger d-block"></span>
+            </div>
+            <div class="card-soft p-4">
+                <h5 class="fw-bold mb-3"><span class="step-num me-2">2</span> Session details</h5>
+                <label class="form-label">Consultation mode</label>
+                <div class="row g-2 mb-1">
+                    @if (s.AllowOnline)
+                    {
+                        <div class="col-sm-6 mode-option">
+                            <input type="radio" asp-for="Mode" value="@ConsultationMode.Online" id="modeOnline" />
+                            <label for="modeOnline"><i class="bi bi-camera-video fs-4 text-primary"></i><span><b>Online</b><br /><small class="text-muted">Video call link sent after confirmation</small></span></label>
+                        </div>
+                    }
+                    @if (s.AllowInPerson)
+                    {
+                        <div class="col-sm-6 mode-option">
+                            <input type="radio" asp-for="Mode" value="@ConsultationMode.InPerson" id="modeInPerson" />
+                            <label for="modeInPerson"><i class="bi bi-geo-alt fs-4 text-primary"></i><span><b>In-Person</b><br /><small class="text-muted">@(s.Consultant.OfficeAddress ?? "At the consultant's office")</small></span></label>
+                        </div>
+                    }
+                </div>
+                <span asp-validation-for="Mode" class="text-danger d-block mb-3"></span>
+                <label asp-for="Concern" class="form-label"></label>
+                <textarea asp-for="Concern" class="form-control" rows="3" maxlength="500" placeholder="Briefly describe your situation so the consultant can prepare (optional)"></textarea>
+                <span asp-validation-for="Concern" class="text-danger"></span>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card-soft p-4 position-sticky" style="top:80px">
+                <div class="d-flex gap-3 align-items-center mb-3">
+                    <img src="@Helper.Avatar(s.Consultant.PhotoURL)" class="avatar avatar-md" alt="" />
+                    <div><b>@s.Consultant.Name</b><div class="small text-muted">@s.Consultant.Title</div></div>
+                </div>
+                <div class="summary-row"><span class="text-muted">Service</span><b class="text-end">@s.Name</b></div>
+                <div class="summary-row"><span class="text-muted">Duration</span><b>@s.DurationMinutes min</b></div>
+                <div class="summary-row"><span class="text-muted">Date</span><b id="sumDate" class="text-end">-</b></div>
+                <div class="summary-row"><span class="text-muted">Time</span><b id="sumTime">-</b></div>
+                <div class="summary-row fs-5"><span>Total</span><b class="text-primary">@Helper.Money(s.Fee)</b></div>
+                <button class="btn btn-primary w-100 mt-3 py-2" id="bookBtn" disabled><i class="bi bi-lock"></i> Continue to Payment</button>
+                <div class="small text-muted mt-2 text-center"><i class="bi bi-info-circle"></i> Free cancellation up to @BookingController.FreeCancelHours hours before.</div>
+            </div>
+        </div>
+    </div>
+</form>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/slot-picker.js" asp-append-version="true"></script>
+}

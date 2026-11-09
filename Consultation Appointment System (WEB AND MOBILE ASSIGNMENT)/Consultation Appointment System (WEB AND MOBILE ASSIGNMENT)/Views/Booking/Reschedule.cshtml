@@ -1,0 +1,39 @@
+@model RescheduleVM
+@{
+    var a = Model.Appointment!;
+    ViewData["Title"] = "Reschedule " + a.Reference;
+    ViewData["Exclude"] = a.Id;
+}
+<a asp-controller="Appointment" asp-action="Details" asp-route-id="@a.Id" class="small"><i class="bi bi-arrow-left"></i> Back to appointment</a>
+<h2 class="page-title mt-2 mb-3">Reschedule @a.Reference</h2>
+<form asp-action="Reschedule" method="post" novalidate>
+    <input type="hidden" asp-for="AppointmentId" />
+    <input type="hidden" name="Date" id="Date" value="@(Model.Date?.ToString("yyyy-MM-dd"))" />
+    <input type="hidden" name="StartTime" id="StartTime" value="@(Model.StartTime?.ToString("HH:mm"))" />
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card-soft p-4">
+                <partial name="_SlotPicker" model="a.ServiceId" />
+                <span asp-validation-for="Date" class="text-danger d-block"></span>
+                <span asp-validation-for="StartTime" class="text-danger d-block"></span>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card-soft p-4">
+                <div class="summary-row"><span class="text-muted">Consultant</span><b>@a.Consultant.Name</b></div>
+                <div class="summary-row"><span class="text-muted">Service</span><b class="text-end">@a.Service.Name</b></div>
+                <div class="summary-row"><span class="text-muted">Current</span><b class="text-end text-decoration-line-through">@a.Date.ToString("d MMM yyyy") @a.StartTime.Time12()</b></div>
+                <div class="summary-row"><span class="text-muted">New date</span><b id="sumDate" class="text-end">-</b></div>
+                <div class="summary-row"><span class="text-muted">New time</span><b id="sumTime">-</b></div>
+                <div class="alert alert-info small mt-3 mb-0">
+                    The consultant will need to re-confirm the new time. You can reschedule up to @BookingController.MaxReschedules times (used: @a.RescheduleCount).
+                </div>
+                <button class="btn btn-primary w-100 mt-3" id="bookBtn" disabled><i class="bi bi-calendar-check"></i> Confirm New Time</button>
+            </div>
+        </div>
+    </div>
+</form>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/slot-picker.js" asp-append-version="true"></script>
+}

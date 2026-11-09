@@ -1,0 +1,59 @@
+@model ConsultantRegisterVM
+@{
+    ViewData["Title"] = "Become a Consultant";
+}
+<div class="auth-wrap card-soft overflow-hidden" style="max-width:1080px">
+    <div class="row g-0">
+        <div class="col-md-4 auth-side">
+            <h2 class="fw-bold">Grow your practice</h2>
+            <p class="opacity-75">Reach new clients, manage your calendar and receive payments online.</p>
+            <ol class="small mt-4 opacity-75 ps-3">
+                <li class="mb-2">Submit your application</li>
+                <li class="mb-2">Verify your email</li>
+                <li class="mb-2">Complete your profile, services &amp; availability</li>
+                <li class="mb-2">Admin reviews and approves your profile</li>
+            </ol>
+        </div>
+        <div class="col-md-8 p-4 p-md-5">
+            <h4 class="fw-bold mb-4">Consultant application</h4>
+            <form asp-action="RegisterConsultant" method="post" enctype="multipart/form-data" novalidate>
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+                <partial name="_RegisterFields" model="Model" />
+                <hr class="my-4" />
+                <h6 class="fw-bold">Professional details</h6>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="CategoryId" class="form-label"></label>
+                        <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-select">
+                            <option value="">-- Select --</option>
+                        </select>
+                        <span asp-validation-for="CategoryId" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Title" class="form-label"></label>
+                        <input asp-for="Title" class="form-control" placeholder="e.g. Licensed Financial Planner" />
+                        <span asp-validation-for="Title" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-8">
+                        <label asp-for="Qualification" class="form-label"></label>
+                        <input asp-for="Qualification" class="form-control" placeholder="e.g. CFP, BBA Finance" />
+                        <span asp-validation-for="Qualification" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="YearsExperience" class="form-label"></label>
+                        <input asp-for="YearsExperience" class="form-control" min="0" max="60" />
+                        <span asp-validation-for="YearsExperience" class="text-danger"></span>
+                    </div>
+                </div>
+                <partial name="_RegisterFooter" model="Model" />
+                <button class="btn btn-primary w-100 py-2">Submit Application</button>
+            </form>
+        </div>
+    </div>
+</div>
+<partial name="_PhotoEditor" model="@("Photo")" />
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/photo-editor.js" asp-append-version="true"></script>
+    <partial name="_PasswordStrength" />
+}

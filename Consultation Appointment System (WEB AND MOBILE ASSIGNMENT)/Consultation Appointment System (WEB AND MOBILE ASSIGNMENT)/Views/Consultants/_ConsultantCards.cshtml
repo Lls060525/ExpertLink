@@ -1,0 +1,15 @@
+@model PagedList<ConsultantCardVM>
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <small class="text-muted">@Model.TotalCount consultant(s) found</small>
+</div>
+@if (Model.Items.Count == 0)
+{
+    <div class="card-soft empty-state"><i class="bi bi-person-video3"></i>No consultants match your search. Try removing some filters.</div>
+}
+<div class="row g-3">
+    @foreach (var c in Model.Items)
+    {
+        <div class="col-md-6 col-xl-4"><partial name="_ConsultantCard" model="c" /></div>
+    }
+</div>
+<div class="mt-4"><partial name="_Pager" model="new PagerVM(Model.Page, Model.TotalPages)" /></div>

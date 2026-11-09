@@ -1,0 +1,77 @@
+@model PagedList<Appointment>
+@{
+    ViewData["Title"] = "All Appointments";
+    AppointmentStatus? current = ViewBag.StatusFilter;
+    DateOnly? fromDate = ViewBag.From;
+    DateOnly? toDate = ViewBag.To;
+}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h2 class="page-title mb-0">Appointments</h2>
+        <p class="text-muted mb-0">@Model.TotalCount appointment(s) found.</p>
+    </div>
+    <a asp-action="ExportAppointments" asp-route-from="@(fromDate?.ToString("yyyy-MM-dd"))" asp-route-to="@(toDate?.ToString("yyyy-MM-dd"))" class="btn btn-outline-primary"><i class="bi bi-filetype-csv"></i> Export CSV</a>
+</div>
+<form method="get" class="card-soft p-3 mb-3 row g-2 align-items-end">
+    <div class="col-md-4">
+        <label class="form-label small mb-1">Search</label>
+        <input name="search" value="@ViewBag.Search" class="form-control" placeholder="Client, consultant or service" data-search />
+    </div>
+    <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">Status</label>
+        <select name="status" class="form-select">
+            <option value="">All</option>
+            @foreach (var s in Enum.GetValues<AppointmentStatus>())
+            {
+                <option value="@s" selected="@(current == s)">@s.Text()</option>
+            }
+        </select>
+    </div>
+    <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">From</label>
+        <input type="date" name="from" value="@(fromDate?.ToString("yyyy-MM-dd"))" class="form-control" />
+    </div>
+    <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">To</label>
+        <input type="date" name="to" value="@(toDate?.ToString("yyyy-MM-dd"))" class="form-control" />
+    </div>
+    <div class="col-6 col-md-2 d-flex gap-1">
+        <button class="btn btn-primary flex-grow-1"><i class="bi bi-funnel"></i> Filter</button>
+        <a asp-action="Appointments" class="btn btn-light" title="Clear"><i class="bi bi-x-lg"></i></a>
+    </div>
+</form>
+<div class="card-soft">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr><th class="ps-3">Ref</th><th>Date &amp; Time</th><th>Client</th><th>Consultant</th><th>Service</th><th>Mode</th><th>Fee</th><th>Payment</th><th>Status</th></tr></thead>
+            <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr><td colspan="9"><div class="empty-state"><i class="bi bi-calendar-x"></i>No appointments found.</div></td></tr>
+                }
+                @foreach (var a in Model.Items)
+                {
+                    <tr>
+                        <td class="ps-3"><a asp-controller="Appointment" asp-action="Details" asp-route-id="@a.Id">@a.Reference</a></td>
+                        <td class="text-nowrap">@a.Date.ToString("d MMM yyyy")<div class="small text-muted">@a.StartTime.Time12() - @a.EndTime.Time12()</div></td>
+                        <td>@a.Client.Name</td>
+                        <td>@a.Consultant.Name</td>
+                        <td>@a.Service.Name</td>
+                        <td><i class="bi @a.Mode.Icon()"></i> @a.Mode.Text()</td>
+                        <td>@Helper.Money(a.Fee)</td>
+                        <td>
+                            @if (a.Payment == null) { <span class="badge text-bg-light border">Unpaid</span> }
+                            else if (a.Payment.Status == PaymentStatus.Refunded) { <span class="badge text-bg-secondary">Refunded</span> }
+                            else { <span class="badge text-bg-success">Paid</span> }
+                        </td>
+                        <td><partial name="_StatusBadge" model="a.Status" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-3 border-top">
+        <small class="text-muted">Showing @Model.FirstItem-@Model.LastItem of @Model.TotalCount</small>
+        <partial name="_Pager" model="new PagerVM(Model.Page, Model.TotalPages)" />
+    </div>
+</div>

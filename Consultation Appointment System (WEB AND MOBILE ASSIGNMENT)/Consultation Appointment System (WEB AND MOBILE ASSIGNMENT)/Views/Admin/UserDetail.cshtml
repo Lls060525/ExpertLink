@@ -1,0 +1,130 @@
+@model User
+@{
+    ViewData["Title"] = Model.Name;
+    var appts = ViewBag.Appointments as List<Appointment>;
+    var consultant = Model as Consultant;
+}
+<a asp-action="Users" class="small"><i class="bi bi-arrow-left"></i> Back to users</a>
+<div class="row g-4 mt-1">
+    <div class="col-lg-4">
+        <div class="card-soft p-4 text-center">
+            <img src="@Helper.Avatar(Model.PhotoURL)" class="avatar avatar-xl mb-3" alt="" />
+            <h4 class="fw-bold mb-0">@Model.Name</h4>
+            <div class="text-muted">@Model.Email</div>
+            <div class="mt-2 d-flex justify-content-center flex-wrap gap-1">
+                <span class="badge text-bg-primary">@Model.Role</span>
+                <span class="badge @(Model.IsActive ? "text-bg-success" : "text-bg-secondary")">@(Model.IsActive ? "Active" : "Inactive")</span>
+                <span class="badge @(Model.EmailVerified ? "text-bg-light border" : "text-bg-warning")">@(Model.EmailVerified ? "Email verified" : "Email not verified")</span>
+                @if (consultant != null)
+                {
+                    <span class="badge @(consultant.IsApproved ? "text-bg-success" : "text-bg-warning")">@(consultant.IsApproved ? "Approved" : "Pending approval")</span>
+                }
+            </div>
+            <hr />
+            <dl class="row text-start small mb-0">
+                <dt class="col-5">Phone</dt><dd class="col-7">@(Model.Phone ?? "-")</dd>
+                <dt class="col-5">Joined</dt><dd class="col-7">@Model.CreatedAt.ToString("d MMM yyyy")</dd>
+                <dt class="col-5">Theme</dt><dd class="col-7">@Model.Theme</dd>
+                <dt class="col-5">Failed logins</dt><dd class="col-7">@Model.FailedLoginCount</dd>
+                @if (Model.LockoutEnd > DateTime.Now)
+                {
+                    <dt class="col-5 text-danger">Locked until</dt><dd class="col-7 text-danger">@(Model.LockoutEnd?.ToString("h:mm tt"))</dd>
+                }
+            </dl>
+            <hr />
+            <div class="d-grid gap-2">
+                @if (consultant != null && !consultant.IsApproved && consultant.IsActive)
+                {
+                    <form asp-action="Approve" method="post" data-confirm="Approve @Model.Name as a consultant? Their profile will become visible to clients.">
+                        <input type="hidden" name="id" value="@Model.Id" /><input type="hidden" name="approve" value="true" />
+                        <button class="btn btn-success w-100"><i class="bi bi-check2-circle"></i> Approve Consultant</button>
+                    </form>
+                    <form asp-action="Approve" method="post" data-confirm="Reject this application? The account will be deactivated.">
+                        <input type="hidden" name="id" value="@Model.Id" /><input type="hidden" name="approve" value="false" />
+                        <button class="btn btn-outline-danger w-100"><i class="bi bi-x-circle"></i> Reject Application</button>
+                    </form>
+                }
+                @if (Model.LockoutEnd > DateTime.Now)
+                {
+                    <form asp-action="Unlock" method="post">
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <button class="btn btn-outline-primary w-100"><i class="bi bi-unlock"></i> Unlock Account</button>
+                    </form>
+                }
+                @if (Model.Id != User.GetUserId())
+                {
+                    <form asp-action="ToggleActive" method="post" data-confirm="@(Model.IsActive ? "Deactivate" : "Activate") @Model.Name's account?">
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <button class="btn @(Model.IsActive ? "btn-outline-danger" : "btn-outline-success") w-100">
+                            <i class="bi @(Model.IsActive ? "bi-person-dash" : "bi-person-check")"></i> @(Model.IsActive ? "Deactivate" : "Activate") Account
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        @if (consultant != null)
+        {
+            <div class="card-soft p-4 mb-4">
+                <h5 class="fw-bold">Professional Profile</h5>
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Specialty</dt><dd class="col-sm-8">@(consultant.Category?.Name ?? "-")</dd>
+                    <dt class="col-sm-4">Title</dt><dd class="col-sm-8">@(consultant.Title ?? "-")</dd>
+                    <dt class="col-sm-4">Qualification</dt><dd class="col-sm-8">@(consultant.Qualification ?? "-")</dd>
+                    <dt class="col-sm-4">Experience</dt><dd class="col-sm-8">@consultant.YearsExperience years</dd>
+                    <dt class="col-sm-4">Office</dt><dd class="col-sm-8">@(consultant.OfficeAddress ?? "-")</dd>
+                    <dt class="col-sm-4">Bio</dt><dd class="col-sm-8">@(consultant.Bio ?? "-")</dd>
+                    <dt class="col-sm-4">Services</dt>
+                    <dd class="col-sm-8">
+                        @if (consultant.Services.Count == 0) { <span class="text-muted">None yet</span> }
+                        @foreach (var s in consultant.Services)
+                        {
+                            <div>@s.Name <span class="text-muted small">· @s.DurationMinutes min · @Helper.Money(s.Fee) @(s.IsActive ? "" : "(inactive)")</span></div>
+                        }
+                    </dd>
+                </dl>
+                @if (consultant.Certificates.Count > 0)
+                {
+                    <h6 class="fw-bold mt-3">Certificates</h6>
+                    <div class="row g-2">
+                        @foreach (var p in consultant.Certificates)
+                        {
+                            <div class="col-4 col-md-3"><a href="@p.PhotoURL" target="_blank"><img src="@p.PhotoURL" class="cert-thumb" alt="@p.Caption" /></a><div class="small text-muted text-truncate">@p.Caption</div></div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+        @if (appts != null)
+        {
+            <div class="card-soft p-4">
+                <h5 class="fw-bold">Recent Appointments</h5>
+                @if (appts.Count == 0)
+                {
+                    <div class="empty-state"><i class="bi bi-calendar"></i>No appointments yet.</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead><tr><th>Ref</th><th>@(consultant != null ? "Client" : "Consultant")</th><th>Service</th><th>Date</th><th>Status</th></tr></thead>
+                            <tbody>
+                                @foreach (var a in appts)
+                                {
+                                    <tr>
+                                        <td><a asp-controller="Appointment" asp-action="Details" asp-route-id="@a.Id">@a.Reference</a></td>
+                                        <td>@(consultant != null ? a.Client.Name : a.Consultant.Name)</td>
+                                        <td>@a.Service.Name</td>
+                                        <td>@a.Date.ToString("d MMM yyyy")</td>
+                                        <td><partial name="_StatusBadge" model="a.Status" /></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>

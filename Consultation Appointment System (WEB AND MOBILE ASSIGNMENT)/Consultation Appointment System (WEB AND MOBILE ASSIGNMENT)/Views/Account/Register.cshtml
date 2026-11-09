@@ -1,0 +1,35 @@
+@model RegisterVM
+@{
+    ViewData["Title"] = "Create Account";
+}
+<div class="auth-wrap card-soft overflow-hidden">
+    <div class="row g-0">
+        <div class="col-md-4 auth-side">
+            <h2 class="fw-bold">Join ExpertLink</h2>
+            <p class="opacity-75">Book verified consultants, pay securely and keep all your sessions in one place.</p>
+            <ul class="list-unstyled small mt-4 opacity-75">
+                <li class="mb-2"><i class="bi bi-check2-circle"></i> Live availability calendar</li>
+                <li class="mb-2"><i class="bi bi-check2-circle"></i> Instant e-receipt &amp; QR e-ticket</li>
+                <li class="mb-2"><i class="bi bi-check2-circle"></i> Chat with your consultant</li>
+            </ul>
+            <hr class="opacity-25" />
+            <p class="small mb-0">Are you a professional? <a asp-action="RegisterConsultant" class="text-white fw-bold">Apply as a consultant</a></p>
+        </div>
+        <div class="col-md-8 p-4 p-md-5">
+            <h4 class="fw-bold mb-4">Create a client account</h4>
+            <form asp-action="Register" method="post" enctype="multipart/form-data" novalidate>
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+                <partial name="_RegisterFields" model="Model" />
+                <partial name="_RegisterFooter" model="Model" />
+                <button class="btn btn-primary w-100 py-2">Create Account</button>
+            </form>
+            <p class="text-center mt-3 mb-0 small">Already have an account? <a asp-action="Login">Login</a></p>
+        </div>
+    </div>
+</div>
+<partial name="_PhotoEditor" model="@("Photo")" />
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/photo-editor.js" asp-append-version="true"></script>
+    <partial name="_PasswordStrength" />
+}

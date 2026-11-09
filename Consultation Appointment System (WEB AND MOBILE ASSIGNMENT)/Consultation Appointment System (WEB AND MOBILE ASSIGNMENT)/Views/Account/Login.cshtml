@@ -1,0 +1,67 @@
+@model LoginVM
+@{
+    ViewData["Title"] = "Login";
+    bool showCaptcha = ViewBag.ShowCaptcha == true;
+}
+<div class="auth-wrap card-soft overflow-hidden">
+    <div class="row g-0">
+        <div class="col-md-5 auth-side d-flex flex-column justify-content-between">
+            <div>
+                <h2 class="fw-bold">Welcome back</h2>
+                <p class="opacity-75">Log in to manage your appointments, chat with your consultant and more.</p>
+            </div>
+            <div class="small opacity-75 mt-4">
+                <div><i class="bi bi-shield-lock"></i> Accounts are temporarily locked after 3 failed attempts.</div>
+            </div>
+        </div>
+        <div class="col-md-7 p-4 p-md-5">
+            <h4 class="fw-bold mb-4">Login</h4>
+            <form asp-action="Login" method="post" novalidate>
+                <input type="hidden" asp-for="ReturnUrl" />
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+                @if (ViewBag.Unverified is string unverified)
+                {
+                    <div class="alert alert-warning py-2 small">
+                        Didn't get the email?
+                        <button type="submit" form="resendForm" class="btn btn-link btn-sm p-0 align-baseline">Resend verification link</button>
+                    </div>
+                }
+                <div class="mb-3">
+                    <label asp-for="Email" class="form-label"></label>
+                    <input asp-for="Email" class="form-control" autofocus autocomplete="username" placeholder="you@example.com" />
+                    <span asp-validation-for="Email" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <label asp-for="Password" class="form-label"></label>
+                        <a asp-action="ForgotPassword" class="small">Forgot password?</a>
+                    </div>
+                    <div class="input-group">
+                        <input asp-for="Password" class="form-control" autocomplete="current-password" />
+                        <button type="button" class="btn btn-outline-secondary pw-toggle" tabindex="-1" aria-label="Show password"><i class="bi bi-eye"></i></button>
+                    </div>
+                    <span asp-validation-for="Password" class="text-danger"></span>
+                </div>
+                @if (showCaptcha)
+                {
+                    <partial name="_Captcha" />
+                }
+                <div class="form-check mb-3">
+                    <input asp-for="RememberMe" class="form-check-input" />
+                    <label asp-for="RememberMe" class="form-check-label"></label>
+                </div>
+                <button class="btn btn-primary w-100 py-2">Login</button>
+            </form>
+            <p class="text-center mt-4 mb-0 small">
+                New here? <a asp-action="Register">Create a client account</a> or <a asp-action="RegisterConsultant">apply as a consultant</a>.
+            </p>
+            @if (ViewBag.Unverified is string unv)
+            {
+                <form id="resendForm" asp-action="ResendVerification" method="post"><input type="hidden" name="email" value="@unv" /></form>
+            }
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

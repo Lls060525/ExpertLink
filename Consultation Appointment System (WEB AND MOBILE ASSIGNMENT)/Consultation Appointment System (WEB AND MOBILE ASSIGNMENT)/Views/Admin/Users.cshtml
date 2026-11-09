@@ -1,0 +1,81 @@
+@model PagedList<User>
+@{
+    ViewData["Title"] = "User Maintenance";
+}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h2 class="page-title mb-0">Users</h2>
+        <p class="text-muted mb-0">Search, filter and manage all accounts.</p>
+    </div>
+    <a asp-action="CreateUser" class="btn btn-primary"><i class="bi bi-person-plus"></i> New User</a>
+</div>
+
+<form id="filterForm" asp-action="Users" method="get" class="card-soft p-3 mb-3 row g-2 align-items-end">
+    <div class="col-md-4">
+        <label class="form-label small mb-1">Search <span class="kbd-hint text-muted">(press <kbd>/</kbd>)</span></label>
+        <input name="search" value="@ViewBag.Search" class="form-control" placeholder="Name, email or phone" data-search autocomplete="off" />
+    </div>
+    <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">Role</label>
+        <select name="role" class="form-select">
+            <option value="">All</option>
+            @foreach (var r in new[] { "Admin", "Consultant", "Client" })
+            {
+                <option value="@r" selected="@(ViewBag.Role == r)">@r</option>
+            }
+        </select>
+    </div>
+    <div class="col-6 col-md-3">
+        <label class="form-label small mb-1">Status</label>
+        <select name="status" class="form-select">
+            <option value="">All</option>
+            <option value="active" selected="@(ViewBag.Status == "active")">Active</option>
+            <option value="inactive" selected="@(ViewBag.Status == "inactive")">Inactive</option>
+            <option value="pending" selected="@(ViewBag.Status == "pending")">Pending approval</option>
+            <option value="unverified" selected="@(ViewBag.Status == "unverified")">Email not verified</option>
+            <option value="locked" selected="@(ViewBag.Status == "locked")">Temporarily locked</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small mb-1">Sort by</label>
+        <select name="sort" class="form-select">
+            <option value="newest" selected="@(ViewBag.Sort == "newest")">Newest first</option>
+            <option value="oldest" selected="@(ViewBag.Sort == "oldest")">Oldest first</option>
+            <option value="name" selected="@(ViewBag.Sort == "name")">Name A-Z</option>
+            <option value="name_desc" selected="@(ViewBag.Sort == "name_desc")">Name Z-A</option>
+            <option value="email" selected="@(ViewBag.Sort == "email")">Email</option>
+        </select>
+    </div>
+</form>
+
+<div id="userTable" class="loading-overlay">
+    <partial name="_UserTable" model="Model" />
+</div>
+
+@section Scripts {
+    <script>
+        // AJAX searching / filtering / sorting / paging (no full page reload)
+        (function () {
+            const form = document.getElementById('filterForm');
+            const target = document.getElementById('userTable');
+            async function load(page) {
+                const params = new URLSearchParams(new FormData(form));
+                if (page) params.set('page', page);
+                const url = form.action + '?' + params.toString();
+                target.classList.add('loading');
+                const r = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                target.innerHTML = await r.text();
+                target.classList.remove('loading');
+                history.replaceState(null, '', url);
+            }
+            const debounced = app.debounce(() => load(1));
+            form.addEventListener('input', e => { if (e.target.name === 'search') debounced(); });
+            form.addEventListener('change', e => { if (e.target.tagName === 'SELECT') load(1); });
+            form.addEventListener('submit', e => { e.preventDefault(); load(1); });
+            target.addEventListener('click', e => {
+                const a = e.target.closest('.page-link[data-page]');
+                if (a) { e.preventDefault(); load(a.dataset.page); }
+            });
+        })();
+    </script>
+}

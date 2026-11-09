@@ -1,0 +1,128 @@
+@model AvailabilityVM
+@{
+    ViewData["Title"] = "Weekly Availability";
+    var days = new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday };
+}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h2 class="page-title mb-0">Weekly Availability</h2>
+        <p class="text-muted mb-0">Set the hours clients can book you. Add several ranges per day (e.g. morning and afternoon).</p>
+    </div>
+    <div class="dropdown">
+        <button class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown"><i class="bi bi-magic"></i> Quick fill</button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="#" data-preset="office">Mon-Fri 9am-12pm &amp; 2pm-5pm</a></li>
+            <li><a class="dropdown-item" href="#" data-preset="fullday">Mon-Fri 9am-6pm</a></li>
+            <li><a class="dropdown-item" href="#" data-preset="evening">Mon-Fri 7pm-10pm + Sat 10am-4pm</a></li>
+            <li><hr class="dropdown-divider" /></li>
+            <li><a class="dropdown-item text-danger" href="#" data-preset="clear">Clear all</a></li>
+        </ul>
+    </div>
+</div>
+<form asp-action="Availability" method="post" id="availForm" novalidate>
+    <div asp-validation-summary="All" class="alert alert-danger py-2 small"></div>
+    <div class="card-soft">
+        @foreach (var d in days)
+        {
+            <div class="d-flex flex-column flex-md-row gap-2 p-3 border-bottom day-block" data-day="@((int)d)">
+                <div style="width:130px" class="fw-semibold pt-md-2">@d</div>
+                <div class="flex-grow-1">
+                    <div class="ranges d-flex flex-column gap-2"></div>
+                    <div class="text-muted small closed-label pt-md-2">Not available</div>
+                </div>
+                <div><button type="button" class="btn btn-sm btn-light add-range"><i class="bi bi-plus-lg"></i> Add hours</button></div>
+            </div>
+        }
+    </div>
+    <div class="d-flex gap-2 mt-3">
+        <button class="btn btn-primary"><i class="bi bi-save"></i> Save Schedule</button>
+        <a asp-action="Dashboard" class="btn btn-light">Cancel</a>
+    </div>
+</form>
+
+<template id="rangeTpl">
+    <div class="d-flex gap-2 align-items-center range-row">
+        <input type="hidden" data-field="Day" />
+        <input type="time" class="form-control form-control-sm" style="max-width:140px" data-field="StartTime" required step="900" />
+        <span>to</span>
+        <input type="time" class="form-control form-control-sm" style="max-width:140px" data-field="EndTime" required step="900" />
+        <button type="button" class="btn btn-sm btn-link text-danger remove-range" title="Remove"><i class="bi bi-x-circle"></i></button>
+        <span class="small text-danger range-error"></span>
+    </div>
+</template>
+
+@section Scripts {
+    <script>
+        // Batch insert / update / delete of availability rows (re-indexed as Rows[i].Field for model binding)
+        (function () {
+            const initial = @Json.Serialize(Model.Rows.Select(r => new { day = (int)r.Day, start = r.StartTime.HasValue ? r.StartTime.Value.ToString("HH:mm") : "", end = r.EndTime.HasValue ? r.EndTime.Value.ToString("HH:mm") : "" }));
+            const tpl = document.getElementById('rangeTpl');
+            const form = document.getElementById('availForm');
+            const block = day => form.querySelector(`.day-block[data-day="${day}"]`);
+
+            function refresh() {
+                form.querySelectorAll('.day-block').forEach(b => b.querySelector('.closed-label').classList.toggle('d-none', b.querySelectorAll('.range-row').length > 0));
+                form.querySelectorAll('.range-row').forEach((row, i) => {
+                    row.querySelectorAll('[data-field]').forEach(inp => inp.name = `Rows[${i}].${inp.dataset.field}`);
+                });
+                validate();
+            }
+
+            function add(day, start = '09:00', end = '17:00') {
+                const node = tpl.content.firstElementChild.cloneNode(true);
+                node.querySelector('[data-field=Day]').value = day;
+                node.querySelector('[data-field=StartTime]').value = start;
+                node.querySelector('[data-field=EndTime]').value = end;
+                block(day).querySelector('.ranges').appendChild(node);
+                refresh();
+            }
+
+            // client-side check: end > start and no overlap within a day
+            function validate() {
+                let ok = true;
+                form.querySelectorAll('.day-block').forEach(b => {
+                    const rows = [...b.querySelectorAll('.range-row')];
+                    rows.forEach(r => r.querySelector('.range-error').textContent = '');
+                    const spans = rows.map(r => ({ r, s: r.querySelector('[data-field=StartTime]').value, e: r.querySelector('[data-field=EndTime]').value }));
+                    spans.forEach(x => { if (!x.s || !x.e) { x.r.querySelector('.range-error').textContent = 'Required'; ok = false; } else if (x.e <= x.s) { x.r.querySelector('.range-error').textContent = 'End must be after start'; ok = false; } });
+                    spans.filter(x => x.s && x.e).sort((a, b) => a.s.localeCompare(b.s)).forEach((x, i, arr) => {
+                        if (i > 0 && x.s < arr[i - 1].e) { x.r.querySelector('.range-error').textContent = 'Overlaps another range'; ok = false; }
+                    });
+                });
+                return ok;
+            }
+
+            form.addEventListener('click', e => {
+                if (e.target.closest('.add-range')) {
+                    const b = e.target.closest('.day-block');
+                    const last = [...b.querySelectorAll('[data-field=EndTime]')].pop()?.value;
+                    if (last && last < '21:00') {
+                        const [h, m] = last.split(':').map(Number);
+                        const s = `${String(Math.min(h + 1, 22)).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                        const en = `${String(Math.min(h + 3, 23)).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                        add(b.dataset.day, s, en);
+                    } else add(b.dataset.day);
+                }
+                if (e.target.closest('.remove-range')) { e.target.closest('.range-row').remove(); refresh(); }
+                const preset = e.target.closest('[data-preset]');
+            });
+            form.addEventListener('input', validate);
+            form.addEventListener('submit', e => { if (!validate()) { e.preventDefault(); app.toast('Please fix the highlighted time ranges.', { type: 'danger', icon: 'bi-exclamation-triangle' }); } });
+
+            document.querySelectorAll('[data-preset]').forEach(a => a.addEventListener('click', e => {
+                e.preventDefault();
+                form.querySelectorAll('.range-row').forEach(r => r.remove());
+                const weekdays = [1, 2, 3, 4, 5];
+                switch (a.dataset.preset) {
+                    case 'office': weekdays.forEach(d => { add(d, '09:00', '12:00'); add(d, '14:00', '17:00'); }); break;
+                    case 'fullday': weekdays.forEach(d => add(d, '09:00', '18:00')); break;
+                    case 'evening': weekdays.forEach(d => add(d, '19:00', '22:00')); add(6, '10:00', '16:00'); break;
+                }
+                refresh();
+            }));
+
+            initial.forEach(r => add(r.day, r.start, r.end));
+            refresh();
+        })();
+    </script>
+}

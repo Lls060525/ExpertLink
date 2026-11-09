@@ -1,0 +1,142 @@
+@model PaymentVM
+@{
+    var a = Model.Appointment!;
+    ViewData["Title"] = "Payment";
+    DateTime expires = ViewBag.ExpiresAt;
+}
+<h2 class="page-title mb-1">Secure Payment</h2>
+<p class="text-muted">Booking <b>@a.Reference</b> · complete payment within <b id="countdown" data-expires="@expires.ToString("o")">--:--</b> to keep your slot.</p>
+<div class="row g-4">
+    <div class="col-lg-7">
+        <form asp-action="Pay" method="post" class="card-soft p-4" novalidate id="payForm">
+            <input type="hidden" asp-for="AppointmentId" />
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+            <label class="form-label fw-semibold">Payment method</label>
+            <div class="row g-2 mb-4">
+                <div class="col-4 pay-method"><input type="radio" asp-for="Method" value="Card" id="mCard" /><label for="mCard"><i class="bi bi-credit-card-2-front fs-4 d-block"></i>Card</label></div>
+                <div class="col-4 pay-method"><input type="radio" asp-for="Method" value="FPX" id="mFpx" /><label for="mFpx"><i class="bi bi-bank fs-4 d-block"></i>FPX</label></div>
+                <div class="col-4 pay-method"><input type="radio" asp-for="Method" value="E-Wallet" id="mWallet" /><label for="mWallet"><i class="bi bi-phone fs-4 d-block"></i>E-Wallet</label></div>
+            </div>
+
+            <div class="pay-section" data-method="Card">
+                <div class="card-preview mb-4 mx-auto">
+                    <div class="d-flex justify-content-between"><i class="bi bi-cpu fs-3"></i><span id="cardBrand" class="fw-bold">CARD</span></div>
+                    <div class="num" id="pvNumber">•••• •••• •••• ••••</div>
+                    <div class="d-flex justify-content-between small"><span id="pvName">CARDHOLDER NAME</span><span id="pvExp">MM/YY</span></div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label asp-for="CardNumber" class="form-label"></label>
+                        <input asp-for="CardNumber" class="form-control" inputmode="numeric" autocomplete="cc-number" maxlength="23" placeholder="4111 1111 1111 1111" />
+                        <span asp-validation-for="CardNumber" class="text-danger"></span>
+                    </div>
+                    <div class="col-12">
+                        <label asp-for="CardName" class="form-label"></label>
+                        <input asp-for="CardName" class="form-control text-uppercase" autocomplete="cc-name" />
+                        <span asp-validation-for="CardName" class="text-danger"></span>
+                    </div>
+                    <div class="col-6">
+                        <label asp-for="Expiry" class="form-label"></label>
+                        <input asp-for="Expiry" class="form-control" placeholder="MM/YY" maxlength="5" autocomplete="cc-exp" />
+                        <span asp-validation-for="Expiry" class="text-danger"></span>
+                    </div>
+                    <div class="col-6">
+                        <label asp-for="Cvv" class="form-label"></label>
+                        <input asp-for="Cvv" type="password" class="form-control" maxlength="4" inputmode="numeric" autocomplete="cc-csc" />
+                        <span asp-validation-for="Cvv" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="small text-muted mt-2"><i class="bi bi-info-circle"></i> Demo gateway: use test card <code>4111 1111 1111 1111</code>, any future expiry and any 3-digit CVV.</div>
+            </div>
+
+            <div class="pay-section" data-method="FPX">
+                <label asp-for="Bank" class="form-label">Select your bank</label>
+                <select asp-for="Bank" class="form-select">
+                    <option value="">-- Choose bank --</option>
+                    @foreach (var b in PaymentVM.Banks) { <option value="@b">@b</option> }
+                </select>
+                <span asp-validation-for="Bank" class="text-danger"></span>
+                <p class="small text-muted mt-2">You will be redirected to your bank's login page (simulated).</p>
+            </div>
+
+            <div class="pay-section" data-method="E-Wallet">
+                <label asp-for="WalletPhone" class="form-label"></label>
+                <input asp-for="WalletPhone" class="form-control" inputmode="numeric" placeholder="0123456789" />
+                <span asp-validation-for="WalletPhone" class="text-danger"></span>
+                <p class="small text-muted mt-2">Touch 'n Go eWallet, GrabPay, Boost (simulated).</p>
+            </div>
+
+            <button class="btn btn-primary w-100 py-2 mt-4" id="payBtn"><i class="bi bi-shield-lock"></i> Pay @Helper.Money(a.Fee)</button>
+        </form>
+        <form asp-action="Cancel" method="post" class="text-center mt-2" data-confirm="Cancel this booking and release the slot?">
+            <input type="hidden" name="AppointmentId" value="@a.Id" />
+            <input type="hidden" name="Reason" value="Cancelled before payment" />
+            <button class="btn btn-link btn-sm text-danger">Cancel booking</button>
+        </form>
+    </div>
+    <div class="col-lg-5">
+        <div class="card-soft p-4">
+            <h6 class="fw-bold mb-3">Order summary</h6>
+            <div class="d-flex gap-3 align-items-center mb-3">
+                <img src="@Helper.Avatar(a.Consultant.PhotoURL)" class="avatar avatar-md" alt="" />
+                <div><b>@a.Consultant.Name</b><div class="small text-muted">@a.Service.Name</div></div>
+            </div>
+            <div class="summary-row"><span class="text-muted">Date</span><b>@a.Date.ToString("ddd, d MMM yyyy")</b></div>
+            <div class="summary-row"><span class="text-muted">Time</span><b>@a.StartTime.Time12() - @a.EndTime.Time12()</b></div>
+            <div class="summary-row"><span class="text-muted">Mode</span><b><i class="bi @a.Mode.Icon()"></i> @a.Mode.Text()</b></div>
+            <div class="summary-row fs-5"><span>Total</span><b class="text-primary">@Helper.Money(a.Fee)</b></div>
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            // ---- show the section of the selected method; disable hidden inputs so they are not validated / posted
+            const form = document.getElementById('payForm');
+            function switchMethod() {
+                const m = form.querySelector('input[name=Method]:checked')?.value || 'Card';
+                form.querySelectorAll('.pay-section').forEach(s => {
+                    const on = s.dataset.method === m;
+                    s.classList.toggle('d-none', !on);
+                    s.querySelectorAll('input,select').forEach(i => i.disabled = !on);
+                });
+            }
+            form.querySelectorAll('input[name=Method]').forEach(r => r.addEventListener('change', switchMethod));
+            if (!form.querySelector('input[name=Method]:checked')) document.getElementById('mCard').checked = true;
+            switchMethod();
+
+            // ---- card number formatting + brand detection + live preview
+            const num = document.getElementById('CardNumber'), name = document.getElementById('CardName'), exp = document.getElementById('Expiry');
+            num.addEventListener('input', () => {
+                const d = num.value.replace(/\D/g, '').substring(0, 19);
+                num.value = d.replace(/(.{4})/g, '$1 ').trim();
+                document.getElementById('pvNumber').textContent = (d + '•'.repeat(Math.max(0, 16 - d.length))).replace(/(.{4})/g, '$1 ').trim();
+                document.getElementById('cardBrand').textContent = /^4/.test(d) ? 'VISA' : /^(5[1-5]|2[2-7])/.test(d) ? 'MASTERCARD' : /^3[47]/.test(d) ? 'AMEX' : 'CARD';
+            });
+            name.addEventListener('input', () => document.getElementById('pvName').textContent = name.value.toUpperCase() || 'CARDHOLDER NAME');
+            exp.addEventListener('input', e => {
+                let d = exp.value.replace(/\D/g, '').substring(0, 4);
+                if (d.length >= 3) d = d.substring(0, 2) + '/' + d.substring(2);
+                exp.value = d;
+                document.getElementById('pvExp').textContent = d || 'MM/YY';
+            });
+
+            // ---- countdown until the reserved slot is released
+            const cd = document.getElementById('countdown');
+            const end = new Date(cd.dataset.expires);
+            const tick = () => {
+                const s = Math.max(0, Math.floor((end - new Date()) / 1000));
+                cd.textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+                if (s === 0) { cd.classList.add('text-danger'); document.getElementById('payBtn').disabled = true; cd.textContent = 'expired'; clearInterval(t); }
+            };
+            const t = setInterval(tick, 1000); tick();
+
+            // ---- simulated gateway processing
+            form.addEventListener('submit', e => {
+                if (e.defaultPrevented || ($(form).data('validator') && !$(form).valid())) return;
+                document.getElementById('payBtn').innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing payment...';
+            });
+        })();
+    </script>
+}

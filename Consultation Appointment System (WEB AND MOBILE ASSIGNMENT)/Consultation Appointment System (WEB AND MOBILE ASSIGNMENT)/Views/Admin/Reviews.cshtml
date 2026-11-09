@@ -1,0 +1,47 @@
+@model PagedList<Review>
+@{
+    ViewData["Title"] = "Review Moderation";
+    int? rating = ViewBag.Rating;
+}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h2 class="page-title mb-0">Reviews</h2>
+        <p class="text-muted mb-0">Remove reviews that are abusive or violate the guidelines.</p>
+    </div>
+    <div class="btn-group">
+        <a asp-action="Reviews" class="btn btn-sm @(rating == null ? "btn-primary" : "btn-outline-primary")">All</a>
+        @for (int i = 5; i >= 1; i--)
+        {
+            <a asp-action="Reviews" asp-route-rating="@i" class="btn btn-sm @(rating == i ? "btn-primary" : "btn-outline-primary")">@i <i class="bi bi-star-fill"></i></a>
+        }
+    </div>
+</div>
+@if (Model.Items.Count == 0)
+{
+    <div class="card-soft empty-state"><i class="bi bi-chat-square-text"></i>No reviews found.</div>
+}
+<div class="row g-3">
+    @foreach (var r in Model.Items)
+    {
+        <div class="col-md-6">
+            <div class="card-soft p-3 h-100 d-flex flex-column">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <partial name="_Stars" model="(double)r.Rating" />
+                        <div class="small text-muted">@r.Appointment.Client.Name → <b>@r.Appointment.Consultant.Name</b> · @r.CreatedAt.ToString("d MMM yyyy")</div>
+                    </div>
+                    <form asp-action="DeleteReview" method="post" data-confirm="Delete this review permanently?">
+                        <input type="hidden" name="id" value="@r.AppointmentId" />
+                        <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                    </form>
+                </div>
+                <p class="mt-2 mb-1">@(r.Comment ?? "(no comment)")</p>
+                @if (r.Reply != null)
+                {
+                    <div class="small bg-body-tertiary rounded p-2 mt-auto"><b>Reply:</b> @r.Reply</div>
+                }
+            </div>
+        </div>
+    }
+</div>
+<div class="mt-3"><partial name="_Pager" model="new PagerVM(Model.Page, Model.TotalPages)" /></div>

@@ -1,0 +1,9 @@
+@model RegisterVM
+<div class="mt-3">
+    <partial name="_Captcha" />
+</div>
+<div class="form-check mb-3">
+    <input asp-for="AcceptTerms" class="form-check-input" />
+    <label asp-for="AcceptTerms" class="form-check-label">I agree to the <a asp-controller="Home" asp-action="Privacy" target="_blank">terms and privacy policy</a></label>
+    <div><span asp-validation-for="AcceptTerms" class="text-danger"></span></div>
+</div>

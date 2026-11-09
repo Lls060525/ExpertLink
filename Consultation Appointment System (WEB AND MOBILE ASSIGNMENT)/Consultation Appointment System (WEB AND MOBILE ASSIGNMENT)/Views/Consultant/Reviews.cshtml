@@ -1,0 +1,42 @@
+@model List<Review>
+@{
+    ViewData["Title"] = "My Reviews";
+    double avg = Model.Count > 0 ? Model.Average(r => r.Rating) : 0;
+}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <h2 class="page-title mb-0">Reviews</h2>
+        <p class="text-muted mb-0">@Model.Count review(s) · average <b>@avg.ToString("0.0")</b> <partial name="_Stars" model="avg" /></p>
+    </div>
+</div>
+@if (Model.Count == 0)
+{
+    <div class="card-soft empty-state"><i class="bi bi-chat-square-heart"></i>No reviews yet. Reviews appear after clients complete a session.</div>
+}
+<div class="row g-3">
+    @foreach (var r in Model)
+    {
+        <div class="col-md-6">
+            <div class="card-soft p-3 h-100">
+                <div class="d-flex align-items-center gap-2">
+                    <img src="@Helper.Avatar(r.Appointment.Client.PhotoURL)" class="avatar avatar-sm" alt="" />
+                    <div class="flex-grow-1"><b>@r.Appointment.Client.Name</b><div class="small text-muted">@r.Appointment.Service.Name · @r.CreatedAt.ToString("d MMM yyyy")</div></div>
+                    <partial name="_Stars" model="(double)r.Rating" />
+                </div>
+                <p class="mt-2">@(r.Comment ?? "(no comment)")</p>
+                @if (r.Reply != null)
+                {
+                    <div class="small bg-body-tertiary rounded p-2"><b><i class="bi bi-reply"></i> Your reply:</b> @r.Reply</div>
+                }
+                else
+                {
+                    <form asp-action="Reply" method="post" class="d-flex gap-2">
+                        <input type="hidden" name="AppointmentId" value="@r.AppointmentId" />
+                        <input name="Reply" class="form-control form-control-sm" placeholder="Write a public reply..." maxlength="500" required />
+                        <button class="btn btn-sm btn-primary">Reply</button>
+                    </form>
+                }
+            </div>
+        </div>
+    }
+</div>

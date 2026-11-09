@@ -1,0 +1,26 @@
+@model List<Notification>
+@{
+    ViewData["Title"] = "Notifications";
+}
+<div class="mx-auto" style="max-width:760px">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="page-title mb-0">Notifications</h2>
+        @if (Model.Any(n => !n.IsRead))
+        {
+            <form asp-action="MarkAllRead" method="post"><button class="btn btn-sm btn-outline-primary"><i class="bi bi-check2-all"></i> Mark all as read</button></form>
+        }
+    </div>
+    <div class="card-soft overflow-hidden">
+        @if (Model.Count == 0)
+        {
+            <div class="empty-state"><i class="bi bi-bell-slash"></i>You have no notifications.</div>
+        }
+        @foreach (var n in Model)
+        {
+            <a asp-action="Open" asp-route-id="@n.Id" class="notif-item d-flex justify-content-between gap-3 @(n.IsRead ? "" : "unread")">
+                <span>@n.Message</span>
+                <small class="text-muted text-nowrap">@NotificationController.Ago(n.CreatedAt)</small>
+            </a>
+        }
+    </div>
+</div>

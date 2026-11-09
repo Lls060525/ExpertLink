@@ -1,0 +1,182 @@
+@model ConsultantProfileVM
+@{
+    ViewData["Title"] = "My Consultant Profile";
+    var certs = (List<CertificatePhoto>)ViewBag.Certificates;
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+}
+@section Styles {
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+}
+<h2 class="page-title mb-3">My Profile</h2>
+<div class="row g-4">
+    <div class="col-lg-7">
+        <form asp-action="Profile" method="post" enctype="multipart/form-data" class="card-soft p-4" novalidate>
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <img src="@Helper.Avatar(Model.PhotoURL)" id="photoPreview" class="avatar avatar-lg" alt="" />
+                <div class="flex-grow-1">
+                    <div class="d-flex gap-2">
+                        <input asp-for="Photo" type="file" accept="image/jpeg,image/png,image/webp" class="form-control form-control-sm" data-preview="#photoPreview" />
+                        <button type="button" class="btn btn-sm btn-outline-primary text-nowrap" data-bs-toggle="modal" data-bs-target="#photoEditor"><i class="bi bi-camera"></i> Webcam / Edit</button>
+                    </div>
+                    <span asp-validation-for="Photo" class="text-danger small"></span>
+                    <div class="small text-muted mt-1">@Model.Email</div>
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-6"><label asp-for="Name" class="form-label"></label><input asp-for="Name" class="form-control" /><span asp-validation-for="Name" class="text-danger"></span></div>
+                <div class="col-md-6"><label asp-for="Phone" class="form-label"></label><input asp-for="Phone" class="form-control" /><span asp-validation-for="Phone" class="text-danger"></span></div>
+                <div class="col-md-6">
+                    <label asp-for="CategoryId" class="form-label"></label>
+                    <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-select"><option value="">-- Select --</option></select>
+                    <span asp-validation-for="CategoryId" class="text-danger"></span>
+                </div>
+                <div class="col-md-6"><label asp-for="Title" class="form-label"></label><input asp-for="Title" class="form-control" /><span asp-validation-for="Title" class="text-danger"></span></div>
+                <div class="col-md-8"><label asp-for="Qualification" class="form-label"></label><input asp-for="Qualification" class="form-control" /><span asp-validation-for="Qualification" class="text-danger"></span></div>
+                <div class="col-md-4"><label asp-for="YearsExperience" class="form-label"></label><input asp-for="YearsExperience" class="form-control" /><span asp-validation-for="YearsExperience" class="text-danger"></span></div>
+                <div class="col-12">
+                    <label asp-for="Bio" class="form-label"></label>
+                    <textarea asp-for="Bio" class="form-control" rows="5" maxlength="1000"></textarea>
+                    <div class="d-flex justify-content-between"><span asp-validation-for="Bio" class="text-danger"></span><small class="text-muted ms-auto"><span id="bioCount">0</span>/1000</small></div>
+                </div>
+                <div class="col-12">
+                    <label asp-for="OfficeAddress" class="form-label"></label>
+                    <div class="input-group">
+                        <input asp-for="OfficeAddress" class="form-control" placeholder="Search an address or click on the map" />
+                        <button type="button" class="btn btn-outline-secondary" id="findAddr" title="Find on map"><i class="bi bi-search"></i></button>
+                        <button type="button" class="btn btn-outline-secondary" id="myLoc" title="Use my current location"><i class="bi bi-crosshair"></i></button>
+                    </div>
+                    <span asp-validation-for="OfficeAddress" class="text-danger"></span>
+                </div>
+                <div class="col-12">
+                    <div id="map" class="map"></div>
+                    <div class="d-flex justify-content-between small text-muted mt-1">
+                        <span><i class="bi bi-info-circle"></i> Click the map or drag the pin to set your office location.</span>
+                        <a href="#" id="clearLoc">Clear location</a>
+                    </div>
+                    <input type="hidden" asp-for="Latitude" value="@(Model.Latitude?.ToString(inv))" />
+                    <input type="hidden" asp-for="Longitude" value="@(Model.Longitude?.ToString(inv))" />
+                    <span asp-validation-for="Latitude" class="text-danger"></span>
+                </div>
+            </div>
+            <button class="btn btn-primary mt-4"><i class="bi bi-save"></i> Save Profile</button>
+        </form>
+    </div>
+    <div class="col-lg-5">
+        <div class="card-soft p-4">
+            <h5 class="fw-bold"><i class="bi bi-patch-check text-primary"></i> Certificates &amp; Credentials</h5>
+            <p class="small text-muted">Upload up to 10 photos of your certificates, licences or awards. You can select or drop several at once.</p>
+            <form asp-action="UploadCertificates" method="post" enctype="multipart/form-data" id="certForm">
+                <label class="photo-drop d-block" id="certDrop">
+                    <i class="bi bi-images fs-2 text-primary"></i>
+                    <div><b>Drag &amp; drop</b> photos or click to browse</div>
+                    <div class="small text-muted">JPG / PNG / WEBP, max 2 MB each</div>
+                    <input type="file" name="photos" id="certFiles" accept="image/jpeg,image/png,image/webp" multiple class="d-none" />
+                </label>
+                <div class="preview-grid my-2" id="certPreview"></div>
+                <input name="caption" class="form-control form-control-sm mb-2" maxlength="100" placeholder="Caption (optional, applied to all)" />
+                <button class="btn btn-primary btn-sm w-100" id="certUpload" disabled><i class="bi bi-cloud-upload"></i> Upload</button>
+            </form>
+            <hr />
+            @if (certs.Count == 0)
+            {
+                <div class="empty-state py-3"><i class="bi bi-image"></i>No certificates uploaded yet.</div>
+            }
+            <div class="row g-2">
+                @foreach (var p in certs)
+                {
+                    <div class="col-6">
+                        <div class="position-relative">
+                            <a href="@p.PhotoURL" target="_blank"><img src="@p.PhotoURL" class="cert-thumb" alt="@p.Caption" /></a>
+                            <form asp-action="DeleteCertificate" method="post" class="position-absolute top-0 end-0 m-1" data-confirm="Delete this photo?">
+                                <input type="hidden" name="id" value="@p.Id" />
+                                <button class="btn btn-sm btn-danger py-0 px-1" title="Delete"><i class="bi bi-x"></i></button>
+                            </form>
+                        </div>
+                        <div class="small text-muted text-truncate">@p.Caption</div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+<partial name="_PhotoEditor" model="@("Photo")" />
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/photo-editor.js" asp-append-version="true"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // ---------------- Bio character counter
+        const bio = document.getElementById('Bio'), bioCount = document.getElementById('bioCount');
+        const countBio = () => bioCount.textContent = bio.value.length;
+        bio.addEventListener('input', countBio); countBio();
+
+        // ---------------- Map location picker (Leaflet + OpenStreetMap, geocoding with Nominatim)
+        (function () {
+            const lat = document.getElementById('Latitude'), lng = document.getElementById('Longitude');
+            const start = lat.value ? [+lat.value, +lng.value] : [3.1390, 101.6869];   // default: Kuala Lumpur
+            const map = L.map('map').setView(start, lat.value ? 15 : 11);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+            let marker = null;
+            function place(p, zoom) {
+                if (!marker) {
+                    marker = L.marker(p, { draggable: true }).addTo(map);
+                    marker.on('dragend', () => place(marker.getLatLng()));
+                }
+                marker.setLatLng(p);
+                const ll = L.latLng(p);
+                lat.value = ll.lat.toFixed(6);
+                lng.value = ll.lng.toFixed(6);
+                if (zoom) map.setView(p, zoom);
+            }
+            if (lat.value) place(start);
+            map.on('click', e => place(e.latlng));
+
+            document.getElementById('findAddr').addEventListener('click', async () => {
+                const q = document.getElementById('OfficeAddress').value.trim();
+                if (!q) return;
+                try {
+                    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=my&q=' + encodeURIComponent(q));
+                    const d = await r.json();
+                    if (d.length) place([+d[0].lat, +d[0].lon], 16);
+                    else app.toast('Address not found. Click on the map instead.', { type: 'warning', icon: 'bi-geo' });
+                } catch { app.toast('Address search is unavailable.', { type: 'danger' }); }
+            });
+            document.getElementById('myLoc').addEventListener('click', () => {
+                navigator.geolocation?.getCurrentPosition(p => place([p.coords.latitude, p.coords.longitude], 16),
+                    () => app.toast('Unable to get your location.', { type: 'danger' }));
+            });
+            document.getElementById('clearLoc').addEventListener('click', e => {
+                e.preventDefault();
+                marker?.remove(); marker = null; lat.value = ''; lng.value = '';
+            });
+        })();
+
+        // ---------------- Multiple photo upload with drag & drop + preview
+        (function () {
+            const drop = document.getElementById('certDrop'), input = document.getElementById('certFiles');
+            const preview = document.getElementById('certPreview'), btn = document.getElementById('certUpload');
+            function show() {
+                preview.innerHTML = '';
+                [...input.files].forEach(f => {
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(f);
+                    img.title = f.name;
+                    if (f.size > 2 * 1024 * 1024) img.style.outline = '3px solid var(--bs-danger)';
+                    preview.appendChild(img);
+                });
+                btn.disabled = input.files.length === 0;
+                btn.innerHTML = `<i class="bi bi-cloud-upload"></i> Upload ${input.files.length} photo(s)`;
+            }
+            ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('dragover'); }));
+            ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('dragover'); }));
+            drop.addEventListener('drop', e => {
+                const dt = new DataTransfer();
+                [...e.dataTransfer.files].filter(f => f.type.startsWith('image/')).forEach(f => dt.items.add(f));
+                input.files = dt.files;
+                show();
+            });
+            input.addEventListener('change', show);
+        })();
+    </script>
+}

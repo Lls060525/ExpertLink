@@ -1,0 +1,106 @@
+@model ConsultantSearchVM
+@{
+    ViewData["Title"] = "Find a Consultant";
+}
+<div class="mb-3">
+    <h2 class="page-title mb-0">Find a Consultant</h2>
+    <p class="text-muted mb-0">Search verified professionals and book a session.</p>
+</div>
+<div class="row g-4">
+    <div class="col-lg-3">
+        <form id="searchForm" asp-action="Index" method="get" class="card-soft p-3 position-sticky" style="top:80px">
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Keyword <span class="kbd-hint text-muted">(<kbd>/</kbd>)</span></label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input asp-for="Search" class="form-control" placeholder="Name, service..." data-search autocomplete="off" />
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Specialty</label>
+                <select asp-for="CategoryId" asp-items="ViewBag.Categories" class="form-select">
+                    <option value="">All specialties</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Consultation mode</label>
+                <select asp-for="Mode" class="form-select">
+                    <option value="">Any</option>
+                    <option value="online">Online</option>
+                    <option value="inperson">In-person</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-semibold d-flex justify-content-between">Max fee <span id="feeLabel" class="text-primary">@(Model.MaxFee == null ? "Any" : "RM " + Model.MaxFee.Value.ToString("0"))</span></label>
+                <input type="range" class="form-range" min="50" max="500" step="10" id="feeRange" value="@(Model.MaxFee ?? 500)" />
+                <input type="hidden" asp-for="MaxFee" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Sort by</label>
+                <select asp-for="Sort" class="form-select">
+                    <option value="rating">Top rated</option>
+                    <option value="reviews">Most reviewed</option>
+                    <option value="fee">Fee: low to high</option>
+                    <option value="fee_desc">Fee: high to low</option>
+                    <option value="experience">Most experienced</option>
+                    <option value="name">Name A-Z</option>
+                </select>
+            </div>
+            <button type="button" id="resetBtn" class="btn btn-light w-100"><i class="bi bi-arrow-counterclockwise"></i> Reset filters</button>
+        </form>
+    </div>
+    <div class="col-lg-9">
+        <div id="results" class="loading-overlay">
+            <partial name="_ConsultantCards" model="Model.Result" />
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <script>
+        // AJAX search, filter, sort and paging
+        (function () {
+            const form = document.getElementById('searchForm');
+            const results = document.getElementById('results');
+            const range = document.getElementById('feeRange'), fee = document.getElementById('MaxFee'), feeLabel = document.getElementById('feeLabel');
+            let ctrl;
+
+            async function load(page) {
+                const params = new URLSearchParams(new FormData(form));
+                [...params.keys()].forEach(k => { if (!params.get(k)) params.delete(k); });
+                if (page > 1) params.set('Page', page);
+                const url = form.action + (params.toString() ? '?' + params : '');
+                ctrl?.abort();
+                ctrl = new AbortController();
+                results.classList.add('loading');
+                try {
+                    const r = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, signal: ctrl.signal });
+                    results.innerHTML = await r.text();
+                    history.replaceState(null, '', url);
+                } catch (e) { if (e.name !== 'AbortError') app.toast('Search failed.', { type: 'danger' }); }
+                results.classList.remove('loading');
+            }
+
+            const debounced = app.debounce(() => load(1));
+            form.addEventListener('input', e => { if (e.target.id === 'Search') debounced(); });
+            form.addEventListener('change', e => { if (e.target.tagName === 'SELECT') load(1); });
+            form.addEventListener('submit', e => { e.preventDefault(); load(1); });
+            range.addEventListener('input', () => {
+                const any = +range.value >= 500;
+                feeLabel.textContent = any ? 'Any' : 'RM ' + range.value;
+                fee.value = any ? '' : range.value;
+            });
+            range.addEventListener('change', () => load(1));
+            document.getElementById('resetBtn').addEventListener('click', () => {
+                form.reset();
+                form.querySelectorAll('input:not([type=range]), select').forEach(i => { if (i.name !== 'Sort') i.value = ''; });
+                document.getElementById('Sort').value = 'rating';
+                range.value = 500; fee.value = ''; feeLabel.textContent = 'Any';
+                load(1);
+            });
+            results.addEventListener('click', e => {
+                const a = e.target.closest('.page-link[data-page]');
+                if (a) { e.preventDefault(); load(+a.dataset.page); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+            });
+        })();
+    </script>
+}

@@ -1,0 +1,55 @@
+@model ProfileVM
+@{
+    ViewData["Title"] = "My Profile";
+}
+<div class="card-soft p-4 p-md-5 mx-auto" style="max-width:720px">
+    <h4 class="fw-bold mb-4"><i class="bi bi-person-circle text-primary"></i> My Profile</h4>
+    <form asp-action="Profile" method="post" enctype="multipart/form-data" novalidate>
+        <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-4 mb-4">
+            <img src="@Helper.Avatar(Model.PhotoURL)" id="photoPreview" class="avatar avatar-xl" alt="Profile photo" />
+            <div>
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#photoEditor"><i class="bi bi-camera"></i> Change Photo (file / webcam)</button>
+                </div>
+                <input asp-for="Photo" type="file" accept="image/jpeg,image/png,image/webp" class="form-control form-control-sm" data-preview="#photoPreview" />
+                <span asp-validation-for="Photo" class="text-danger small"></span>
+                @if (Model.PhotoURL != null)
+                {
+                    <div class="form-check mt-2">
+                        <input asp-for="RemovePhoto" class="form-check-input" />
+                        <label asp-for="RemovePhoto" class="form-check-label small"></label>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Email</label>
+                <input class="form-control" value="@Model.Email" disabled />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Role</label>
+                <input class="form-control" value="@Model.Role" disabled />
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Phone" class="form-label"></label>
+                <input asp-for="Phone" class="form-control" />
+                <span asp-validation-for="Phone" class="text-danger"></span>
+            </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-4">
+            <button class="btn btn-primary"><i class="bi bi-save"></i> Save Changes</button>
+            <a asp-action="ChangePassword" class="btn btn-light"><i class="bi bi-key"></i> Change Password</a>
+        </div>
+    </form>
+</div>
+<partial name="_PhotoEditor" model="@("Photo")" />
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/photo-editor.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,96 @@
+@{
+    ViewData["Title"] = "QR Check-In";
+}
+<div class="mx-auto" style="max-width:640px">
+    <h2 class="page-title mb-0"><i class="bi bi-qr-code-scan text-primary"></i> QR Check-In</h2>
+    <p class="text-muted">Scan the client's e-ticket with your webcam to check them in for today's session.</p>
+    <div class="card-soft p-4">
+        <div id="reader"></div>
+        <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
+            <button class="btn btn-primary" id="startScan"><i class="bi bi-camera-video"></i> Start Camera</button>
+            <button class="btn btn-light d-none" id="stopScan"><i class="bi bi-stop-circle"></i> Stop</button>
+            <label class="btn btn-outline-primary mb-0"><i class="bi bi-image"></i> Scan from Image
+                <input type="file" accept="image/*" id="scanFile" hidden />
+            </label>
+        </div>
+        <div id="result" class="mt-3"></div>
+        <hr />
+        <form id="manualForm" class="d-flex gap-2">
+            <input id="manualCode" class="form-control" placeholder="Or paste the e-ticket code (EXL:...)" />
+            <button class="btn btn-outline-secondary">Check In</button>
+        </form>
+    </div>
+    <div class="card-soft p-3 mt-3 small text-muted">
+        <i class="bi bi-info-circle"></i> Tip: open a client's appointment page on a phone (Login as <code>client@expertlink.com</code>) and point it at this camera.
+    </div>
+</div>
+@section Scripts {
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script>
+        (function () {
+            const result = document.getElementById('result');
+            const startBtn = document.getElementById('startScan'), stopBtn = document.getElementById('stopScan');
+            let scanner = null, busy = false, last = '';
+
+            function show(ok, title, detail, url) {
+                result.innerHTML = '';
+                const box = document.createElement('div');
+                box.className = 'scan-result ' + (ok ? 'alert alert-success' : 'alert alert-danger');
+                const h = document.createElement('div');
+                h.className = 'fw-bold';
+                h.innerHTML = `<i class="bi ${ok ? 'bi-check-circle-fill' : 'bi-x-octagon-fill'}"></i> `;
+                h.append(document.createTextNode(title));
+                box.appendChild(h);
+                if (detail) { const d = document.createElement('div'); d.className = 'small'; d.textContent = detail; box.appendChild(d); }
+                if (url) { const a = document.createElement('a'); a.href = url; a.className = 'alert-link small'; a.textContent = 'Open appointment'; box.appendChild(a); }
+                result.appendChild(box);
+            }
+
+            async function checkIn(code) {
+                if (busy || code === last) return;
+                busy = true; last = code;
+                try {
+                    const r = await app.post('@Url.Action("CheckIn")', { code });
+                    show(r.ok, r.message, r.detail, r.url);
+                    if (r.ok) app.beep();
+                } catch (e) {
+                    show(false, 'Check-in failed. Please try again.');
+                }
+                busy = false;
+                setTimeout(() => last = '', 4000);   // allow re-scanning the same code later
+            }
+
+            startBtn.addEventListener('click', async () => {
+                try {
+                    scanner = scanner || new Html5Qrcode('reader');
+                    await scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 240, height: 240 } }, checkIn, () => { });
+                    startBtn.classList.add('d-none'); stopBtn.classList.remove('d-none');
+                } catch (e) {
+                    show(false, 'Unable to start the camera', String(e));
+                }
+            });
+            stopBtn.addEventListener('click', async () => {
+                await scanner?.stop();
+                stopBtn.classList.add('d-none'); startBtn.classList.remove('d-none');
+            });
+            document.getElementById('scanFile').addEventListener('change', async e => {
+                const f = e.target.files[0];
+                if (!f) return;
+                try {
+                    if (scanner?.isScanning) { await scanner.stop(); stopBtn.classList.add('d-none'); startBtn.classList.remove('d-none'); }
+                    scanner = scanner || new Html5Qrcode('reader');
+                    const text = await scanner.scanFile(f, true);
+                    last = '';
+                    checkIn(text);
+                } catch { show(false, 'No QR code found in the image.'); }
+                e.target.value = '';
+            });
+            document.getElementById('manualForm').addEventListener('submit', e => {
+                e.preventDefault();
+                last = '';
+                checkIn(document.getElementById('manualCode').value.trim());
+            });
+            window.addEventListener('beforeunload', () => scanner?.isScanning && scanner.stop());
+        })();
+    </script>
+}

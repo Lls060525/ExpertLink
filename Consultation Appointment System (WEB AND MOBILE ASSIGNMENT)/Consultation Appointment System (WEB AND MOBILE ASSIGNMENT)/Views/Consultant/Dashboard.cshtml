@@ -1,0 +1,92 @@
+@model Consultant
+@{
+    ViewData["Title"] = "Consultant Dashboard";
+    var today = (List<Appointment>)ViewBag.Today;
+    var pending = (List<Appointment>)ViewBag.PendingList;
+    bool needsProfile = ViewBag.NeedsProfile, needsServices = ViewBag.NeedsServices, needsAvailability = ViewBag.NeedsAvailability;
+}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+        <h2 class="page-title mb-0">Hello, @Model.Name.Split(' ')[0]</h2>
+        <p class="text-muted mb-0">@DateTime.Now.ToString("dddd, d MMMM yyyy")</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-controller="Appointment" asp-action="Scanner" class="btn btn-primary"><i class="bi bi-qr-code-scan"></i> Scan Check-In</a>
+        <a asp-controller="Consultants" asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-primary @(Model.IsApproved ? "" : "disabled")"><i class="bi bi-eye"></i> Public Profile</a>
+    </div>
+</div>
+
+@if (!Model.IsApproved)
+{
+    <div class="alert alert-warning"><i class="bi bi-hourglass-split"></i> <b>Your profile is pending admin approval.</b> Complete your profile, services and availability in the meantime - clients will be able to find you once approved.</div>
+}
+@if (needsProfile || needsServices || needsAvailability)
+{
+    <div class="card-soft p-4 mb-4">
+        <h6 class="fw-bold">Finish setting up your profile</h6>
+        <div class="row g-2 mt-1">
+            <div class="col-md-4"><a asp-action="Profile" class="cat-tile"><i class="bi @(needsProfile ? "bi-circle" : "bi-check-circle-fill text-success") fs-4"></i><span>Write your bio &amp; set location</span></a></div>
+            <div class="col-md-4"><a asp-action="Services" class="cat-tile"><i class="bi @(needsServices ? "bi-circle" : "bi-check-circle-fill text-success") fs-4"></i><span>Add at least one service</span></a></div>
+            <div class="col-md-4"><a asp-action="Availability" class="cat-tile"><i class="bi @(needsAvailability ? "bi-circle" : "bi-check-circle-fill text-success") fs-4"></i><span>Set weekly availability</span></a></div>
+        </div>
+    </div>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3"><div class="card-soft stat-card"><div class="label">Today's sessions</div><div class="value">@today.Count</div></div></div>
+    <div class="col-6 col-lg-3"><div class="card-soft stat-card"><div class="label">Upcoming (confirmed)</div><div class="value">@ViewBag.Upcoming</div></div></div>
+    <div class="col-6 col-lg-3"><div class="card-soft stat-card"><div class="label">Earnings this month</div><div class="value">@Helper.Money((decimal)ViewBag.Earnings)</div></div></div>
+    <div class="col-6 col-lg-3"><div class="card-soft stat-card"><div class="label">Rating · Completed</div><div class="value">@(((double)ViewBag.Rating).ToString("0.0")) <small class="fs-6 text-muted">· @ViewBag.Completed</small></div></div></div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card-soft p-4 h-100">
+            <h5 class="fw-bold mb-3"><i class="bi bi-calendar-day text-primary"></i> Today's schedule</h5>
+            @if (today.Count == 0)
+            {
+                <div class="empty-state"><i class="bi bi-cup-hot"></i>No sessions today.</div>
+            }
+            <ul class="timeline">
+                @foreach (var a in today)
+                {
+                    <li class="@(a.Status != AppointmentStatus.Confirmed ? "done" : "")">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <b>@a.StartTime.Time12() - @a.EndTime.Time12()</b> · @a.Service.Name
+                                <div class="small text-muted"><i class="bi @a.Mode.Icon()"></i> @a.Client.Name · @a.Mode.Text()</div>
+                            </div>
+                            <div class="text-end">
+                                <partial name="_StatusBadge" model="a.Status" />
+                                <div><a asp-controller="Appointment" asp-action="Details" asp-route-id="@a.Id" class="small">Open</a></div>
+                            </div>
+                        </div>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card-soft p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-inbox text-warning"></i> Awaiting confirmation</h5>
+                <a asp-controller="Appointment" asp-action="Index" asp-route-tab="pending" class="small">View all</a>
+            </div>
+            @if (pending.Count == 0)
+            {
+                <div class="empty-state"><i class="bi bi-check2-all"></i>All caught up!</div>
+            }
+            @foreach (var a in pending)
+            {
+                <a asp-controller="Appointment" asp-action="Details" asp-route-id="@a.Id" class="d-flex gap-3 align-items-center text-decoration-none text-body border-bottom py-2">
+                    <img src="@Helper.Avatar(a.Client.PhotoURL)" class="avatar avatar-sm" alt="" />
+                    <div class="flex-grow-1">
+                        <b>@a.Client.Name</b>
+                        <div class="small text-muted">@a.Service.Name · @a.Date.ToString("ddd, d MMM") @a.StartTime.Time12()</div>
+                    </div>
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            }
+        </div>
+    </div>
+</div>

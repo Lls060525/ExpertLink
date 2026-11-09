@@ -1,0 +1,51 @@
+@* Self-written photo editor: choose file or capture from webcam, then zoom / pan / rotate / flip
+   and crop to a square. The result is put back into the file input as a JPEG (DataTransfer). *@
+@model string
+<div class="modal fade" id="photoEditor" tabindex="-1" data-input="@Model">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-crop"></i> Edit Photo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-7 text-center">
+                        <div class="pe-stage">
+                            <video id="peVideo" autoplay playsinline class="d-none"></video>
+                            <canvas id="peCanvas" width="360" height="360"></canvas>
+                            <div class="pe-mask"></div>
+                        </div>
+                        <div class="small text-muted mt-1"><i class="bi bi-arrows-move"></i> Drag to reposition · scroll to zoom</div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="d-grid gap-2">
+                            <label class="btn btn-outline-primary"><i class="bi bi-folder2-open"></i> Choose File
+                                <input type="file" accept="image/jpeg,image/png,image/webp" id="peFile" hidden />
+                            </label>
+                            <button type="button" class="btn btn-outline-primary" id="peCamera"><i class="bi bi-camera-video"></i> Use Webcam</button>
+                            <button type="button" class="btn btn-success d-none" id="peSnap"><i class="bi bi-camera"></i> Capture</button>
+                        </div>
+                        <hr />
+                        <label class="form-label small mb-1">Zoom</label>
+                        <input type="range" class="form-range" id="peZoom" min="1" max="4" step="0.01" value="1" />
+                        <div class="btn-group w-100 mt-2" role="group">
+                            <button type="button" class="btn btn-light" id="peRotL" title="Rotate left"><i class="bi bi-arrow-counterclockwise"></i></button>
+                            <button type="button" class="btn btn-light" id="peRotR" title="Rotate right"><i class="bi bi-arrow-clockwise"></i></button>
+                            <button type="button" class="btn btn-light" id="peFlip" title="Flip horizontal"><i class="bi bi-symmetry-vertical"></i></button>
+                            <button type="button" class="btn btn-light" id="peReset" title="Reset"><i class="bi bi-arrow-repeat"></i></button>
+                        </div>
+                        <div class="form-check form-switch mt-3">
+                            <input class="form-check-input" type="checkbox" id="peGray" />
+                            <label class="form-check-label small" for="peGray">Black &amp; white</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="peApply" disabled><i class="bi bi-check2"></i> Use This Photo</button>
+            </div>
+        </div>
+    </div>
+</div>

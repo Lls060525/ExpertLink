@@ -1,0 +1,18 @@
+# Visual Studio / build output
+.vs/
+bin/
+obj/
+*.user
+*.suo
+
+# Local database files and dropped e-mails
+*.mdf
+*.ldf
+**/MailDrop/
+
+# Runtime uploads (keep the folders)
+**/wwwroot/uploads/*/*
+!**/wwwroot/uploads/*/.gitkeep
+
+# Private local settings (SMTP password)
+appsettings.Local.json

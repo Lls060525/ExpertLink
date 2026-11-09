@@ -1,0 +1,44 @@
+@model PagedList<User>
+<div class="card-soft">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr><th class="ps-3">User</th><th>Role</th><th>Phone</th><th>Status</th><th>Joined</th><th></th></tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr><td colspan="6"><div class="empty-state"><i class="bi bi-person-x"></i>No users match your filters.</div></td></tr>
+                }
+                @foreach (var u in Model.Items)
+                {
+                    <tr>
+                        <td class="ps-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <img src="@Helper.Avatar(u.PhotoURL)" class="avatar avatar-sm" alt="" />
+                                <div><b>@u.Name</b><div class="small text-muted">@u.Email</div></div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge @(u.Role == "Admin" ? "text-bg-dark" : u.Role == "Consultant" ? "text-bg-primary" : "text-bg-light border")">@u.Role</span>
+                        </td>
+                        <td>@u.Phone</td>
+                        <td>
+                            @if (!u.IsActive) { <span class="badge text-bg-secondary">Inactive</span> }
+                            else if (u is Consultant c && !c.IsApproved) { <span class="badge text-bg-warning">Pending approval</span> }
+                            else { <span class="badge text-bg-success">Active</span> }
+                            @if (!u.EmailVerified) { <span class="badge text-bg-light border" title="Email not verified"><i class="bi bi-envelope-exclamation"></i></span> }
+                            @if (u.LockoutEnd > DateTime.Now) { <span class="badge text-bg-danger" title="Temporarily locked"><i class="bi bi-lock"></i></span> }
+                        </td>
+                        <td class="small text-muted">@u.CreatedAt.ToString("d MMM yyyy")</td>
+                        <td class="text-end pe-3"><a asp-action="UserDetail" asp-route-id="@u.Id" class="btn btn-sm btn-light">View</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 p-3 border-top">
+        <small class="text-muted">Showing @Model.FirstItem-@Model.LastItem of @Model.TotalCount</small>
+        <partial name="_Pager" model="new PagerVM(Model.Page, Model.TotalPages)" />
+    </div>
+</div>

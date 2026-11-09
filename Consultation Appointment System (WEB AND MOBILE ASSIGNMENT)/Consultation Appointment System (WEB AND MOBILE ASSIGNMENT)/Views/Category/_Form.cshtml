@@ -1,0 +1,37 @@
+@model CategoryVM
+<input type="hidden" asp-for="Id" />
+<div class="row g-3">
+    <div class="col-md-7">
+        <label asp-for="Name" class="form-label"></label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="col-md-5">
+        <label asp-for="Icon" class="form-label">Icon <a href="https://icons.getbootstrap.com/" target="_blank" class="small">(browse)</a></label>
+        <div class="input-group">
+            <span class="input-group-text"><i class="bi @Model.Icon" id="iconPreview"></i></span>
+            <input asp-for="Icon" class="form-control" list="iconList" />
+        </div>
+        <datalist id="iconList">
+            @foreach (var i in new[] { "bi-bank", "bi-cash-coin", "bi-briefcase", "bi-heart-pulse", "bi-graph-up-arrow", "bi-cpu", "bi-mortarboard", "bi-house", "bi-translate", "bi-palette", "bi-airplane", "bi-shield-check", "bi-people", "bi-camera", "bi-tools", "bi-globe" })
+            {
+                <option value="@i"></option>
+            }
+        </datalist>
+        <span asp-validation-for="Icon" class="text-danger"></span>
+    </div>
+    <div class="col-12">
+        <label asp-for="Description" class="form-label"></label>
+        <textarea asp-for="Description" class="form-control" rows="3" maxlength="300"></textarea>
+        <span asp-validation-for="Description" class="text-danger"></span>
+    </div>
+    <div class="col-12">
+        <div class="form-check form-switch">
+            <input asp-for="IsActive" class="form-check-input" />
+            <label asp-for="IsActive" class="form-check-label"></label>
+        </div>
+    </div>
+</div>
+<script>
+    document.getElementById('Icon').addEventListener('input', e => document.getElementById('iconPreview').className = 'bi ' + e.target.value);
+</script>

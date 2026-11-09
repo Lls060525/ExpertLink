@@ -1,0 +1,35 @@
+@model ConsultantCardVM
+<div class="card-soft consultant-card p-3 d-flex flex-column">
+    <div class="d-flex gap-3 align-items-center">
+        <img src="@Helper.Avatar(Model.PhotoURL)" class="avatar" alt="@Model.Name" />
+        <div class="min-w-0">
+            <h6 class="mb-0 fw-bold text-truncate">@Model.Name</h6>
+            <div class="small text-muted text-truncate">@Model.Title</div>
+            <div class="small">
+                @if (Model.ReviewCount > 0)
+                {
+                    <i class="bi bi-star-fill text-warning"></i> <b>@Model.Rating.ToString("0.0")</b> <span class="text-muted">(@Model.ReviewCount)</span>
+                }
+                else
+                {
+                    <span class="text-muted">New</span>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="d-flex flex-wrap gap-1 my-3">
+        @if (Model.Category != null) { <span class="chip chip-brand"><i class="bi @Model.CategoryIcon"></i> @Model.Category</span> }
+        <span class="chip"><i class="bi bi-award"></i> @Model.YearsExperience yrs</span>
+        @if (Model.Online) { <span class="chip"><i class="bi bi-camera-video"></i> Online</span> }
+        @if (Model.InPerson) { <span class="chip"><i class="bi bi-geo-alt"></i> In-person</span> }
+    </div>
+    <div class="mt-auto d-flex justify-content-between align-items-center">
+        <div>
+            @if (Model.MinFee != null)
+            {
+                <small class="text-muted">From</small> <b>@Helper.Money(Model.MinFee.Value)</b>
+            }
+        </div>
+        <a asp-controller="Consultants" asp-action="Details" asp-route-id="@Model.Id" class="btn btn-sm btn-primary stretched-link">View &amp; Book</a>
+    </div>
+</div>

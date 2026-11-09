@@ -1,0 +1,55 @@
+@model CategoryImportVM
+@{
+    ViewData["Title"] = "Import Categories";
+}
+<div class="card-soft p-4 p-md-5 mx-auto" style="max-width:720px">
+    <h4 class="fw-bold mb-1"><i class="bi bi-upload text-primary"></i> Batch Import Categories</h4>
+    <p class="text-muted small">Upload a CSV / text file with one category per line: <code>Name,Description,Icon</code>. The header row is optional. Existing names are skipped.</p>
+    <pre class="bg-body-tertiary rounded p-3 small mb-4">Name,Description,Icon
+Property Consulting,"Buying, selling and renting property",bi-house
+Immigration Advice,Visas and work permits,bi-airplane
+Language Tutoring,,bi-translate</pre>
+    <form asp-action="Import" method="post" enctype="multipart/form-data" novalidate>
+        <label class="photo-drop d-block mb-2" id="drop">
+            <i class="bi bi-filetype-csv fs-1 text-primary"></i>
+            <div><b>Drag &amp; drop</b> a CSV file here or click to browse</div>
+            <div class="small text-muted" id="fileName">Max 1 MB</div>
+            <input asp-for="File" type="file" accept=".csv,.txt,text/csv,text/plain" class="d-none" />
+        </label>
+        <span asp-validation-for="File" class="text-danger"></span>
+        <div id="previewBox" class="d-none mt-3">
+            <h6 class="fw-bold">Preview</h6>
+            <div class="table-responsive"><table class="table table-sm"><thead><tr><th>#</th><th>Name</th><th>Description</th><th>Icon</th></tr></thead><tbody id="previewRows"></tbody></table></div>
+        </div>
+        <div class="d-flex gap-2 mt-3">
+            <button class="btn btn-primary"><i class="bi bi-upload"></i> Import</button>
+            <a asp-action="Index" class="btn btn-light">Cancel</a>
+        </div>
+    </form>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const drop = document.getElementById('drop'), input = document.getElementById('File');
+            ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('dragover'); }));
+            ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('dragover'); }));
+            drop.addEventListener('drop', e => { input.files = e.dataTransfer.files; input.dispatchEvent(new Event('change', { bubbles: true })); });
+            input.addEventListener('change', async () => {
+                const f = input.files[0];
+                if (!f) return;
+                document.getElementById('fileName').textContent = `${f.name} (${(f.size / 1024).toFixed(1)} KB)`;
+                const lines = (await f.text()).split(/\r?\n/).filter(l => l.trim());
+                const rows = document.getElementById('previewRows');
+                rows.innerHTML = '';
+                lines.slice(0, 15).forEach((l, i) => {
+                    const cols = l.match(/("([^"]|"")*"|[^,]*)(,|$)/g).map(c => c.replace(/,$/, '').replace(/^"|"$/g, '').replace(/""/g, '"'));
+                    const tr = document.createElement('tr');
+                    [i + 1, cols[0], cols[1] || '', cols[2] || 'bi-briefcase'].forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+                    rows.appendChild(tr);
+                });
+                document.getElementById('previewBox').classList.remove('d-none');
+            });
+        })();
+    </script>
+}

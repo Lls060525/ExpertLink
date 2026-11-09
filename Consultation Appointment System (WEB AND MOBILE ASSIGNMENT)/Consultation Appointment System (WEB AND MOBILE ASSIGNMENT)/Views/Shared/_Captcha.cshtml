@@ -1,0 +1,17 @@
+@* Self-written SVG captcha (AccountController.Captcha). Answer is kept in session. *@
+<div class="mb-3">
+    <label class="form-label" for="Captcha">Security Check</label>
+    <div class="d-flex gap-2 align-items-center">
+        <img src="/Account/Captcha?t=@DateTime.Now.Ticks" class="captcha-img" id="captchaImg" alt="Captcha" />
+        <button type="button" class="btn btn-light" id="captchaRefresh" title="New code" aria-label="New captcha code"><i class="bi bi-arrow-clockwise"></i></button>
+        <input name="Captcha" id="Captcha" class="form-control text-uppercase" maxlength="5" autocomplete="off" placeholder="Enter code" value=""
+               data-val="true" data-val-required="Please enter the captcha code." />
+    </div>
+    <span class="text-danger field-validation-valid" data-valmsg-for="Captcha" data-valmsg-replace="true"></span>
+</div>
+<script>
+    document.getElementById('captchaRefresh').addEventListener('click', function () {
+        document.getElementById('captchaImg').src = '/Account/Captcha?t=' + Date.now();
+        document.getElementById('Captcha').value = '';
+    });
+</script>
