@@ -11,7 +11,7 @@ namespace ExpertLink.Controllers;
 // BOOKING: interactive slot selection, booking, payment (simulated gateway),
 // e-receipt, reschedule and cancellation (by client).
 [Authorize(Roles = "Client")]
-public class BookingController(AppDbContext db, SlotService slots, NotificationService ns, EmailService email) : Controller
+public class BookingController(AppDbContext db, SlotService slots, NotificationService ns, EmailService email, StripeService stripe) : Controller
 {
     private int Me => User.GetUserId();
 
@@ -104,13 +104,14 @@ public class BookingController(AppDbContext db, SlotService slots, NotificationS
     }
 
     // =======================================================================
-    // Payment (simulated gateway: Card with Luhn check / FPX / E-Wallet)
+    // Payment: simulated gateway (Card with Luhn check / FPX / E-Wallet)
+    //          or real Stripe Checkout (test mode)
     // =======================================================================
     private Task<Appointment?> FindMine(int id) =>
         db.Appointments.Include(a => a.Consultant).Include(a => a.Service).Include(a => a.Payment).Include(a => a.Client)
           .FirstOrDefaultAsync(a => a.Id == id && a.ClientId == Me);
 
-    public async Task<IActionResult> Pay(int id)
+    public async Task<IActionResult> Pay(int id, string? result = null)
     {
         await slots.ExpireUnpaidAsync();
         var a = await FindMine(id);
@@ -121,6 +122,8 @@ public class BookingController(AppDbContext db, SlotService slots, NotificationS
             TempData["Error"] = "This booking can no longer be paid: " + (a.CancelReason ?? a.Status.Text());
             return RedirectToAction("Details", "Appointment", new { id });
         }
+        if (result == "cancelled")
+            TempData["Error"] = "Stripe payment was cancelled. You can try again or choose another payment method.";
         ViewBag.ExpiresAt = a.CreatedAt.AddMinutes(SlotService.UnpaidExpiryMinutes);
         return View(new PaymentVM { AppointmentId = id, Appointment = a });
     }
@@ -144,6 +147,31 @@ public class BookingController(AppDbContext db, SlotService slots, NotificationS
             return View(vm);
         }
 
+        // ---- Stripe Checkout: redirect to Stripe's hosted payment page
+        if (vm.Method == "Stripe")
+        {
+            string? error = !stripe.Enabled ? "Stripe payment is not configured. Please choose another payment method."
+                          : a.Fee < StripeService.MinAmount ? $"Stripe requires a minimum payment of {Helper.Money(StripeService.MinAmount)}. Please choose another payment method."
+                          : null;
+            if (error == null)
+            {
+                try
+                {
+                    var success = Url.Action("StripeSuccess", "Booking", new { id = a.Id }, Request.Scheme) + "?session_id={CHECKOUT_SESSION_ID}";
+                    var cancel = Url.Action("Pay", "Booking", new { id = a.Id, result = "cancelled" }, Request.Scheme)!;
+                    return Redirect(await stripe.CreateCheckoutAsync(a, success, cancel));
+                }
+                catch (Stripe.StripeException ex)
+                {
+                    error = "Could not connect to Stripe: " + ex.Message;
+                }
+            }
+            ModelState.AddModelError("", error);
+            vm.Appointment = a;
+            ViewBag.ExpiresAt = a.CreatedAt.AddMinutes(SlotService.UnpaidExpiryMinutes);
+            return View(vm);
+        }
+
         var digits = (vm.CardNumber ?? "").Replace(" ", "").Replace("-", "");
         a.Payment = new Payment
         {
@@ -161,6 +189,66 @@ public class BookingController(AppDbContext db, SlotService slots, NotificationS
 
         TempData["Info"] = "Payment successful! Your booking is awaiting the consultant's confirmation.";
         return RedirectToAction("Receipt", new { id = a.Id });
+    }
+
+    // Stripe redirects the client back here after paying on the Stripe page.
+    // The session is read back from Stripe to confirm it was really paid.
+    public async Task<IActionResult> StripeSuccess(int id, [FromQuery(Name = "session_id")] string? sessionId)
+    {
+        var a = await FindMine(id);
+        if (a == null) return NotFound();
+        if (a.Payment != null) return RedirectToAction("Receipt", new { id });
+        if (string.IsNullOrEmpty(sessionId) || !stripe.Enabled) return RedirectToAction("Pay", new { id });
+
+        Stripe.Checkout.Session s;
+        try
+        {
+            s = await stripe.GetSessionAsync(sessionId);
+        }
+        catch (Stripe.StripeException ex)
+        {
+            TempData["Error"] = "Could not verify the Stripe payment: " + ex.Message;
+            return RedirectToAction("Pay", new { id });
+        }
+        if (s.ClientReferenceId != a.Id.ToString() || s.PaymentStatus != "paid")
+        {
+            TempData["Error"] = "The Stripe payment was not completed.";
+            return RedirectToAction("Pay", new { id });
+        }
+
+        a.Payment = new Payment
+        {
+            Amount = (s.AmountTotal ?? 0) / 100m,
+            Method = "Stripe",
+            CardLast4 = s.PaymentIntent?.LatestCharge?.PaymentMethodDetails?.Card?.Last4,
+            ReferenceNo = "PAY" + DateTime.Now.ToString("yyMMddHHmmss") + Random.Shared.Next(100, 999),
+            StripePaymentIntentId = s.PaymentIntentId,
+            PaidAt = DateTime.Now,
+            Status = PaymentStatus.Paid,
+        };
+
+        // Paid on Stripe, but the 30-minute reservation expired in the meantime -> refund automatically
+        if (a.Status != AppointmentStatus.Pending)
+        {
+            bool refunded = await stripe.RefundAsync(s.PaymentIntentId);
+            if (refunded)
+            {
+                a.Payment.Status = PaymentStatus.Refunded;
+                a.Payment.RefundedAt = DateTime.Now;
+            }
+            await db.SaveChangesAsync();
+            TempData["Error"] = refunded
+                ? "Your reservation expired before the payment was completed, so the payment has been refunded. Please book again."
+                : "Your reservation expired before the payment was completed and the automatic refund failed. Please contact us for a refund.";
+            return RedirectToAction("Details", "Appointment", new { id });
+        }
+
+        await db.SaveChangesAsync();
+        await ns.NotifyAsync(a.ConsultantId, $"New booking request {a.Reference} from {a.Client.Name} on {a.Date:d MMM} at {a.StartTime.Time12()}.", $"/Appointment/Details/{a.Id}");
+        SendReceipt(a);
+
+        TempData["Info"] = "Stripe payment successful! Your booking is awaiting the consultant's confirmation.";
+        return RedirectToAction("Receipt", new { id });
     }
 
     // =======================================================================
@@ -294,6 +382,8 @@ public class BookingController(AppDbContext db, SlotService slots, NotificationS
             a.Payment!.Status = PaymentStatus.Refunded;
             a.Payment.RefundedAt = DateTime.Now;
         }
+        // Paid through Stripe -> refund through the Stripe API as well
+        bool stripeFailed = refund && a.Payment!.StripePaymentIntentId != null && !await stripe.RefundAsync(a.Payment.StripePaymentIntentId);
         await db.SaveChangesAsync();
 
         if (a.Payment != null)
@@ -303,6 +393,7 @@ public class BookingController(AppDbContext db, SlotService slots, NotificationS
             ? "Booking cancelled."
             : refund ? $"Appointment cancelled. A full refund of {Helper.Money(a.Fee)} will be credited within 5-7 working days."
                      : $"Appointment cancelled. No refund is given for cancellations less than {FreeCancelHours} hours before the session.";
+        if (stripeFailed) TempData["Error"] = "The Stripe refund could not be processed automatically. Please contact us.";
         return RedirectToAction("Details", "Appointment", new { id = a.Id });
     }
 }

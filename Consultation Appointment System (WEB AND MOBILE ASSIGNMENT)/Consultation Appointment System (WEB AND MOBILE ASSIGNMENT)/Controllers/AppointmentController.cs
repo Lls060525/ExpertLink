@@ -12,7 +12,7 @@ namespace ExpertLink.Controllers;
 // consultant processing (confirm / reject / check-in / complete / no-show),
 // client review.
 [Authorize]
-public class AppointmentController(AppDbContext db, SlotService slots, NotificationService ns, EmailService email) : Controller
+public class AppointmentController(AppDbContext db, SlotService slots, NotificationService ns, EmailService email, StripeService stripe) : Controller
 {
     private int Me => User.GetUserId();
 
@@ -142,6 +142,8 @@ public class AppointmentController(AppDbContext db, SlotService slots, Notificat
             a.Payment.Status = PaymentStatus.Refunded;   // consultant-initiated -> always full refund
             a.Payment.RefundedAt = DateTime.Now;
         }
+        // Paid through Stripe -> refund through the Stripe API as well
+        bool stripeFailed = a.Payment?.StripePaymentIntentId != null && !await stripe.RefundAsync(a.Payment.StripePaymentIntentId);
         await db.SaveChangesAsync();
 
         await ns.NotifyAsync(a.ClientId, $"Sorry, {a.Consultant.Name} is unable to take {a.Reference}. A full refund has been issued.", $"/Appointment/Details/{a.Id}");
@@ -149,6 +151,7 @@ public class AppointmentController(AppDbContext db, SlotService slots, Notificat
             $"<p>Hi {WebUtility.HtmlEncode(a.Client.Name)},</p><p>Unfortunately {WebUtility.HtmlEncode(a.Consultant.Name)} is unable to take your session on {a.Date:d MMM yyyy} at {a.StartTime.Time12()}.</p><p>Reason: <i>{WebUtility.HtmlEncode(a.CancelReason)}</i></p><p>A full refund of <b>{Helper.Money(a.Fee)}</b> has been issued.</p>"));
 
         TempData["Info"] = $"{a.Reference} rejected and refunded.";
+        if (stripeFailed) TempData["Error"] = "The Stripe refund could not be processed automatically - please refund it in the Stripe Dashboard.";
         return RedirectToAction("Details", new { id = a.Id });
     }
 

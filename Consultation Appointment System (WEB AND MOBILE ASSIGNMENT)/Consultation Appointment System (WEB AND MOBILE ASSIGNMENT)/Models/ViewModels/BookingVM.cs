@@ -49,7 +49,7 @@ public class PaymentVM : IValidatableObject
 {
     public int AppointmentId { get; set; }
 
-    [Required, RegularExpression("^(Card|FPX|E-Wallet)$", ErrorMessage = "Invalid payment method.")]
+    [Required, RegularExpression("^(Card|FPX|E-Wallet|Stripe)$", ErrorMessage = "Invalid payment method.")]
     public string Method { get; set; } = "Card";
 
     [MaxLength(100), Display(Name = "Name on Card")]

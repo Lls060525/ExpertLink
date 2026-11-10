@@ -2,6 +2,7 @@ using ExpertLink.Data;
 using ExpertLink.Hubs;
 using ExpertLink.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,6 +17,15 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
 builder.Services.AddHttpContextAccessor();
 
+// Behind a tunnel / proxy (e.g. Visual Studio Dev Tunnels): use the public host name
+// so generated links (Stripe return URL, e-mail verification, password reset) work.
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+    o.KnownNetworks.Clear();
+    o.KnownProxies.Clear();
+});
+
 // Session (used by captcha + failed login counter)
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(o =>
@@ -28,8 +38,16 @@ builder.Services.AddSession(o =>
 // ---------------------------------------------------------------------------
 // Data layer: EF Core + SQL Server Express (file-based .mdf in the project folder)
 // ---------------------------------------------------------------------------
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!
-    .Replace("|DataDirectory|", builder.Environment.ContentRootPath);
+// The database name is made unique per project folder, so copies of the project
+// (e.g. a teammate's clone) never clash inside LocalDB.
+var dbName = "ExpertLink_" + Convert.ToHexString(
+    System.Security.Cryptography.SHA1.HashData(System.Text.Encoding.UTF8.GetBytes(builder.Environment.ContentRootPath.ToLowerInvariant())))[..8];
+var connectionString = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(
+    builder.Configuration.GetConnectionString("DefaultConnection")!
+        .Replace("|DataDirectory|", builder.Environment.ContentRootPath))
+{
+    InitialCatalog = dbName
+}.ConnectionString;
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseSqlServer(connectionString, sql => sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 
@@ -55,6 +73,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<Helper>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<SlotService>();
+builder.Services.AddScoped<StripeService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddSingleton<CaptchaService>();
 
@@ -71,6 +90,8 @@ using (var scope = app.Services.CreateScope())
         DbSeeder.Seed(db, hp);
     }
 }
+
+app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {

@@ -283,6 +283,10 @@ namespace ExpertLink.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
+                    b.Property<string>("StripePaymentIntentId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.HasKey("AppointmentId");
 
                     b.ToTable("Payments");

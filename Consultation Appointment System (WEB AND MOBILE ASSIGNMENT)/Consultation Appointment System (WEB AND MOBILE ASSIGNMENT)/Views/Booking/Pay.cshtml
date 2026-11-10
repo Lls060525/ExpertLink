@@ -1,8 +1,11 @@
 @model PaymentVM
+@inject StripeService StripePay
 @{
     var a = Model.Appointment!;
     ViewData["Title"] = "Payment";
     DateTime expires = ViewBag.ExpiresAt;
+    bool stripeOn = StripePay.Enabled && a.Fee >= StripeService.MinAmount;
+    var col = stripeOn ? "col-6 col-md-3" : "col-4";
 }
 <h2 class="page-title mb-1">Secure Payment</h2>
 <p class="text-muted">Booking <b>@a.Reference</b> · complete payment within <b id="countdown" data-expires="@expires.ToString("o")">--:--</b> to keep your slot.</p>
@@ -13,9 +16,13 @@
             <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
             <label class="form-label fw-semibold">Payment method</label>
             <div class="row g-2 mb-4">
-                <div class="col-4 pay-method"><input type="radio" asp-for="Method" value="Card" id="mCard" /><label for="mCard"><i class="bi bi-credit-card-2-front fs-4 d-block"></i>Card</label></div>
-                <div class="col-4 pay-method"><input type="radio" asp-for="Method" value="FPX" id="mFpx" /><label for="mFpx"><i class="bi bi-bank fs-4 d-block"></i>FPX</label></div>
-                <div class="col-4 pay-method"><input type="radio" asp-for="Method" value="E-Wallet" id="mWallet" /><label for="mWallet"><i class="bi bi-phone fs-4 d-block"></i>E-Wallet</label></div>
+                <div class="@col pay-method"><input type="radio" asp-for="Method" value="Card" id="mCard" /><label for="mCard"><i class="bi bi-credit-card-2-front fs-4 d-block"></i>Card</label></div>
+                <div class="@col pay-method"><input type="radio" asp-for="Method" value="FPX" id="mFpx" /><label for="mFpx"><i class="bi bi-bank fs-4 d-block"></i>FPX</label></div>
+                <div class="@col pay-method"><input type="radio" asp-for="Method" value="E-Wallet" id="mWallet" /><label for="mWallet"><i class="bi bi-phone fs-4 d-block"></i>E-Wallet</label></div>
+                @if (stripeOn)
+                {
+                    <div class="@col pay-method"><input type="radio" asp-for="Method" value="Stripe" id="mStripe" /><label for="mStripe"><i class="bi bi-stripe fs-4 d-block"></i>Stripe</label></div>
+                }
             </div>
 
             <div class="pay-section" data-method="Card">
@@ -48,6 +55,16 @@
                 </div>
                 <div class="small text-muted mt-2"><i class="bi bi-info-circle"></i> Demo gateway: use test card <code>4111 1111 1111 1111</code>, any future expiry and any 3-digit CVV.</div>
             </div>
+
+            @if (stripeOn)
+            {
+                <div class="pay-section" data-method="Stripe">
+                    <div class="alert alert-light border small mb-0">
+                        <i class="bi bi-shield-check text-success"></i> You will be redirected to <b>Stripe's secure checkout page</b> to pay by credit / debit card. Your card details are entered on Stripe and never reach our server.
+                        <div class="mt-2 text-muted">Test mode: use card <code>4242 4242 4242 4242</code>, any future expiry, any CVC.</div>
+                    </div>
+                </div>
+            }
 
             <div class="pay-section" data-method="FPX">
                 <label asp-for="Bank" class="form-label">Select your bank</label>
@@ -94,6 +111,8 @@
         (function () {
             // ---- show the section of the selected method; disable hidden inputs so they are not validated / posted
             const form = document.getElementById('payForm');
+            const payBtn = document.getElementById('payBtn'), payLabel = payBtn.innerHTML;
+            const stripeLabel = '<i class="bi bi-box-arrow-up-right"></i> Continue to Stripe';
             function switchMethod() {
                 const m = form.querySelector('input[name=Method]:checked')?.value || 'Card';
                 form.querySelectorAll('.pay-section').forEach(s => {
@@ -101,6 +120,7 @@
                     s.classList.toggle('d-none', !on);
                     s.querySelectorAll('input,select').forEach(i => i.disabled = !on);
                 });
+                payBtn.innerHTML = m === 'Stripe' ? stripeLabel : payLabel;
             }
             form.querySelectorAll('input[name=Method]').forEach(r => r.addEventListener('change', switchMethod));
             if (!form.querySelector('input[name=Method]:checked')) document.getElementById('mCard').checked = true;
@@ -135,7 +155,8 @@
             // ---- simulated gateway processing
             form.addEventListener('submit', e => {
                 if (e.defaultPrevented || ($(form).data('validator') && !$(form).valid())) return;
-                document.getElementById('payBtn').innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing payment...';
+                const isStripe = form.querySelector('input[name=Method]:checked')?.value === 'Stripe';
+                payBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> ' + (isStripe ? 'Redirecting to Stripe...' : 'Processing payment...');
             });
         })();
     </script>

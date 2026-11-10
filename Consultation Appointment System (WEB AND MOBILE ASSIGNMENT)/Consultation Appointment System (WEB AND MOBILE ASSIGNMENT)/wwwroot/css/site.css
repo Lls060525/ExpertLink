@@ -107,7 +107,7 @@ body { background: var(--surface-2); }
 .step-num { width: 36px; height: 36px; border-radius: 50%; background: var(--brand); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
 
 /* ---------------------------------------------------------------- Consultant cards */
-.consultant-card { transition: .15s; height: 100%; }
+.consultant-card { position: relative; transition: .15s; height: 100%; }   /* keeps the stretched-link inside the card */
 .consultant-card:hover { transform: translateY(-3px); box-shadow: 0 12px 24px rgba(15,23,42,.08); }
 .consultant-card .avatar { width: 72px; height: 72px; }
 .chip { display: inline-flex; align-items: center; gap: .3rem; font-size: .75rem; padding: .2rem .55rem; border-radius: 999px; background: var(--muted-bg); color: var(--bs-body-color); }

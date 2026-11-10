@@ -18,10 +18,11 @@ Roles      : Admin, Consultant, Client
  3. Create the database with a migration. Open
     Tools > NuGet Package Manager > Package Manager Console and run:
 
-        Add-Migration InitialCreate
         Update-Database
 
-    This creates ExpertLinkDb.mdf in the project folder.
+    The migrations are already included in the Migrations folder. This
+    creates ExpertLinkDb.mdf in the project folder. (The app also applies
+    pending migrations automatically when it starts.)
  4. Press F5. On first start the app inserts the sample data
     (Data/DbSeeder.cs) automatically.
 
@@ -55,6 +56,9 @@ Roles      : Admin, Consultant, Client
  Client      unverified@example.com         Client@123    (email NOT verified - shows resend link)
 
  Test payment card : 4111 1111 1111 1111, any future expiry (e.g. 12/29), any CVV
+                     (simulated gateway - "Card" option)
+ Stripe test card  : 4242 4242 4242 4242, any future expiry, any CVC
+                     ("Stripe" option - needs internet and a Stripe test key)
 
 
 -------------------------------------------------------------------------------
@@ -72,6 +76,12 @@ Roles      : Admin, Consultant, Client
    using the saved QR PNG).
  * Real-time chat / notifications: open the same appointment as the client and
    the consultant in two different browsers (e.g. Chrome + Edge).
+ * Stripe (test mode): create a free Stripe account, copy the TEST secret key
+   (Developers > API keys, starts with sk_test_) into appsettings.Local.json:
+       "Stripe": { "SecretKey": "sk_test_..." }
+   The "Stripe" payment option then appears on the payment page. Payments and
+   refunds (consultant reject / client cancel >= 24 h) show in the Stripe
+   Dashboard (test mode). Without a key, the Stripe option is hidden.
  * Unpaid bookings are auto-cancelled after 30 minutes and the slot is released.
  * Cancellation >= 24 hours before the session = full refund; later = no refund.
 
@@ -136,6 +146,8 @@ Roles      : Admin, Consultant, Client
      - [*] QR code check-in by scanning the client's e-ticket with the webcam
    Payment (Client)
      - Checkout with Card / FPX / E-Wallet (simulated gateway), refunds
+     - [*] 3rd-party payment API: Stripe Checkout (test mode), payment verified
+           with the Stripe API, automatic Stripe refunds
      - [*] Card validation: Luhn checksum + expiry (custom attribute, client + server),
            live card preview and formatting
      - [*] E-receipt (printable / save as PDF + e-mailed HTML receipt)
@@ -175,7 +187,7 @@ Roles      : Admin, Consultant, Client
  6. LIBRARIES
 -------------------------------------------------------------------------------
  NuGet : Microsoft.EntityFrameworkCore.SqlServer, Microsoft.EntityFrameworkCore.Tools,
-         SixLabors.ImageSharp (photo resize)
+         SixLabors.ImageSharp (photo resize), Stripe.net (Stripe payment API)
  Local : Bootstrap 5.3, jQuery, jQuery Validation + Unobtrusive (project template)
  CDN   : Bootstrap Icons, Google Fonts, SignalR JS client, Chart.js, Leaflet,
          qrcodejs, html5-qrcode

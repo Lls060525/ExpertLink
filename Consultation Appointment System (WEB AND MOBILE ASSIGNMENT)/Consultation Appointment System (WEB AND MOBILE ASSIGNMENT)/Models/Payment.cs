@@ -20,7 +20,7 @@ public class Payment
     public decimal Amount { get; set; }
 
     [Required, MaxLength(20)]
-    public string Method { get; set; } = "Card";   // Card / FPX / E-Wallet
+    public string Method { get; set; } = "Card";   // Card / FPX / E-Wallet (simulated) or Stripe
 
     [Required, MaxLength(30)]
     public string ReferenceNo { get; set; } = "";
@@ -33,4 +33,8 @@ public class Payment
     public DateTime PaidAt { get; set; } = DateTime.Now;
 
     public DateTime? RefundedAt { get; set; }
+
+    // Stripe PaymentIntent id (pi_...), used to issue refunds through the Stripe API
+    [MaxLength(100)]
+    public string? StripePaymentIntentId { get; set; }
 }

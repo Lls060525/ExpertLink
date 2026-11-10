@@ -17,6 +17,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
+    <PackageReference Include="Stripe.net" Version="48.0.0" />
   </ItemGroup>
 
   <!-- Keep the runtime database / dropped e-mails out of the publish output -->
