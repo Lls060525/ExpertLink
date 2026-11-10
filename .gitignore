@@ -16,3 +16,6 @@ obj/
 
 # Private local settings (SMTP password)
 appsettings.Local.json
+
+# Cached OpenStreetMap tiles (MapController)
+**/TileCache/

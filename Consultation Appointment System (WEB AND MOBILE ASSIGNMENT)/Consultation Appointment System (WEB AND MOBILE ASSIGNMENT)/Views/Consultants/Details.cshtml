@@ -189,7 +189,7 @@
             (function () {
                 const pos = [@Model.Latitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), @Model.Longitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)];
                 const map = L.map('map', { scrollWheelZoom: false }).setView(pos, 15);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+                L.tileLayer('/map/tile/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors' }).addTo(map);
                 L.marker(pos).addTo(map).bindPopup(@Json.Serialize(Model.Name)).openPopup();
             })();
         </script>

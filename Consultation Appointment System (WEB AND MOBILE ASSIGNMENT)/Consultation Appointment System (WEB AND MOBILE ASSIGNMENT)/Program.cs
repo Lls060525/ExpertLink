@@ -17,6 +17,14 @@ builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
 builder.Services.AddHttpContextAccessor();
 
+// HttpClient for the OpenStreetMap tile / address-search proxy (MapController).
+// OSM requires a User-Agent that identifies the application.
+builder.Services.AddHttpClient("osm", c =>
+{
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("ExpertLink/1.0 (BMIT2023 student assignment)");
+    c.Timeout = TimeSpan.FromSeconds(10);
+});
+
 // Behind a tunnel / proxy (e.g. Visual Studio Dev Tunnels): use the public host name
 // so generated links (Stripe return URL, e-mail verification, password reset) work.
 builder.Services.Configure<ForwardedHeadersOptions>(o =>

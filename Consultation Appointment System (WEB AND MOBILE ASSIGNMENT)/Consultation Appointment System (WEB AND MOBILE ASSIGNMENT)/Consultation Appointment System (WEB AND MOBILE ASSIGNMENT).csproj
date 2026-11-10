@@ -24,6 +24,9 @@
   <ItemGroup>
     <Content Remove="MailDrop\**" />
     <None Remove="*.mdf;*.ldf" />
+    <!-- Cached map tiles downloaded at runtime (MapController) -->
+    <None Remove="TileCache\**" />
+    <Content Remove="TileCache\**" />
   </ItemGroup>
 
 </Project>
